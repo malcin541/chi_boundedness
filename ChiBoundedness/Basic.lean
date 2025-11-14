@@ -2,6 +2,7 @@ import Mathlib.Combinatorics.SimpleGraph.Basic
 import Mathlib.Combinatorics.SimpleGraph.Clique
 import Mathlib.Combinatorics.SimpleGraph.Coloring
 import Mathlib.Data.Set.Card
+import Mathlib
 
 open Finset Fintype
 
@@ -15,22 +16,32 @@ lemma finite_graph_chromaticNumber_ne_top :
   exact G.colorable_of_fintype
 
 lemma size_le_chromaticNumber_times_indepNumber :
-    G.chromaticNumber * G.indepNum >= Fintype.card V :=
+    Fintype.card V ≤ G.chromaticNumber.toNat * G.indepNum := by
   have hcol : G.Colorable G.chromaticNumber.toNat := by
     exact G.colorable_of_chromaticNumber_ne_top finite_graph_chromaticNumber_ne_top
   /- Define optimum set of colors and coloring -/
-  let opt_colors : Finset ℕ := Finset.range G.chromaticNumber.toNat
+  let opt_colors := Fin G.chromaticNumber.toNat
   have h_opt_sufficient : (G.chromaticNumber.toNat ≤ Fintype.card opt_colors) := by
     simp [opt_colors]
   let opt_coloring : G.Coloring opt_colors := hcol.toColoring h_opt_sufficient
   /- Each color class is of size at most the independence number -/
-  have h_cc_small : ∀ {n : ↥opt_colors},
-    (Set.ncard (opt_coloring.colorClass n) ≤ G.indepNum) := by
+  have h_cc_small : ∀ n, (#(Set.toFinset (opt_coloring.colorClass n)) ≤ G.indepNum) := by
     intro n
-    let cc := (opt_coloring.colorClass n)
-    let cc_f := cc.toFinset
-    have h_cc_indep : G.IsIndepSet cc_f := by
+    let cc := (opt_coloring.colorClass n).toFinset
+    have h_cc_indep : G.IsIndepSet cc := by
       rw [G.isIndepSet_iff]
-      exact opt_coloring.color_classes_independent n /- This fails if cc is replaced by cc_f -/
-    exact h_cc_indep.card_le_indepNum /- This works if h_cc_indep has cc_f instead of cc -/
-   sorry /- to be continued -/
+      rw [Set.coe_toFinset]
+      exact opt_coloring.color_classes_independent n
+    exact h_cc_indep.card_le_indepNum
+  have h : Fintype.card V ≤ G.indepNum * Fintype.card opt_colors := by
+    unfold Fintype.card
+    apply Finset.card_le_mul_card_image_of_maps_to (f := opt_coloring)
+    case Hf => simp
+    case hn =>
+      simp_all
+      exact h_cc_small
+  rw [Nat.mul_comm] at h
+  have h₂ : G.chromaticNumber = Fintype.card opt_colors := by
+    simp [opt_colors, ENat.coe_toNat, finite_graph_chromaticNumber_ne_top]
+  rw [h₂]
+  exact h
