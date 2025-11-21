@@ -47,13 +47,13 @@ lemma size_le_chromaticNumber_times_indepNumber :
     exact h_cc_small
 
 def IsDegenerate (G : SimpleGraph V) (d : ℕ) : Prop :=
-  ∀ (H : G.Subgraph) [DecidableRel H.Adj], H.IsInduced → H ≠ ⊥
+  ∀ (H : G.Subgraph) [DecidableRel H.Adj], H ≠ ⊥
     → ∃ v ∈ H.verts, (H.degree v) ≤ d
 
 theorem empty_zero_degenerate (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
      (G = ⊥) → IsDegenerate G d := by
   unfold IsDegenerate
-  intro h_Gbot H inst h_ind h_Hbot
+  intro h_Gbot H inst h_Hbot
   rw [H.ne_bot_iff_nonempty_verts] at h_Hbot
   obtain ⟨ x, hx ⟩ := h_Hbot
   use x
@@ -67,8 +67,8 @@ theorem empty_zero_degenerate (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ)
     exact le_trans h_le (Nat.zero_le d)
 
 theorem mon_degeneracy (d₁ d₂ : ℕ) : IsDegenerate G d₁ → d₁ ≤ d₂ → IsDegenerate G d₂ := by
-  intro h₁ h₂ H inst h_ind h_bot
-  obtain ⟨ v, hv, hdeg ⟩ := h₁ H h_ind h_bot
+  intro h₁ h₂ H inst h_bot
+  obtain ⟨ v, hv, hdeg ⟩ := h₁ H h_bot
   use v
   constructor
   · exact hv
@@ -76,10 +76,30 @@ theorem mon_degeneracy (d₁ d₂ : ℕ) : IsDegenerate G d₁ → d₁ ≤ d₂
 
 theorem degeneracy_le_maxDegree [DecidableRel G.Adj] : IsDegenerate G G.maxDegree := by
   unfold IsDegenerate
-  intro H insta h_ind h_bot
+  intro H insta h_bot
   rw [H.ne_bot_iff_nonempty_verts] at h_bot
   obtain ⟨ x, hx ⟩ := h_bot
   use x
   constructor
   · exact hx
   · exact le_trans (H.degree_le x) (G.degree_le_maxDegree x)
+
+theorem degeneracy_subgraph_monotone [DecidableRel G.Adj] (d : ℕ)
+  (H : G.Subgraph) [DecidableRel H.Adj] [DecidablePred (· ∈ H.verts)] :
+    IsDegenerate G d → IsDegenerate H.coe d := by
+  classical
+  intro h_Gdeg K inst h_Kbot
+  let K' := H.coeSubgraph K
+  have h_K'bot : K' ≠ ⊥ := by
+    rw [K'.ne_bot_iff_nonempty_verts]
+    rw [K.ne_bot_iff_nonempty_verts] at h_Kbot
+    aesop_graph
+  obtain h := h_Gdeg K' h_K'bot
+  obtain ⟨ v, hv_mem, hv_deg ⟩ := h
+  have hv_image : v ∈ Subtype.val '' K.verts := hv_mem
+  obtain ⟨x, hx_in_K, hx_eq⟩ := hv_image
+  use x
+  constructor
+  · exact hx_in_K
+  · rw [← hx_eq] at hv_deg
+    sorry
