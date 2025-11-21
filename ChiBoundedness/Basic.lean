@@ -21,6 +21,8 @@ lemma size_le_chromaticNumber_times_indepNumber :
     exact G.colorable_of_chromaticNumber_ne_top finite_graph_chromaticNumber_ne_top
   /- Define optimum set of colors and coloring -/
   let opt_colors := Fin G.chromaticNumber.toNat
+  have h_opt_colors_eq_chi : G.chromaticNumber = Fintype.card opt_colors := by
+    simp [opt_colors, ENat.coe_toNat, finite_graph_chromaticNumber_ne_top]
   have h_opt_sufficient : (G.chromaticNumber.toNat ≤ Fintype.card opt_colors) := by
     simp [opt_colors]
   let opt_coloring : G.Coloring opt_colors := hcol.toColoring h_opt_sufficient
@@ -29,19 +31,15 @@ lemma size_le_chromaticNumber_times_indepNumber :
     intro n
     let cc := (opt_coloring.colorClass n).toFinset
     have h_cc_indep : G.IsIndepSet cc := by
-      rw [G.isIndepSet_iff]
-      rw [Set.coe_toFinset]
+      rw [G.isIndepSet_iff, Set.coe_toFinset]
       exact opt_coloring.color_classes_independent n
     exact h_cc_indep.card_le_indepNum
-  have h : Fintype.card V ≤ G.indepNum * Fintype.card opt_colors := by
-    unfold Fintype.card
-    apply Finset.card_le_mul_card_image_of_maps_to (f := opt_coloring)
-    case Hf => simp
-    case hn =>
-      simp_all
-      exact h_cc_small
-  rw [Nat.mul_comm] at h
-  have h₂ : G.chromaticNumber = Fintype.card opt_colors := by
-    simp [opt_colors, ENat.coe_toNat, finite_graph_chromaticNumber_ne_top]
-  rw [h₂]
-  exact h
+  /- Rewrite the target slightly -/
+  rw [h_opt_colors_eq_chi, Nat.mul_comm]
+  simp
+  /- Conclude the proof -/
+  apply Finset.card_le_mul_card_image_of_maps_to (f := opt_coloring)
+  case Hf => simp
+  case hn =>
+    simp_all
+    exact h_cc_small
