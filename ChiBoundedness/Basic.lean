@@ -8,6 +8,8 @@ open Finset Fintype
 
 variable {V : Type*} [Fintype V] {G : SimpleGraph V}
 
+set_option diagnostics true
+
 /- Some unimportant stuff needed because SimpleGraph can be infinite -/
 lemma finite_graph_chromaticNumber_ne_top :
     G.chromaticNumber ≠ ⊤ := by
@@ -43,3 +45,41 @@ lemma size_le_chromaticNumber_times_indepNumber :
   case hn =>
     simp_all
     exact h_cc_small
+
+def IsDegenerate (G : SimpleGraph V) (d : ℕ) : Prop :=
+  ∀ (H : G.Subgraph) [DecidableRel H.Adj], H.IsInduced → H ≠ ⊥
+    → ∃ v ∈ H.verts, (H.degree v) ≤ d
+
+theorem empty_zero_degenerate (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
+     (G = ⊥) → IsDegenerate G d := by
+  unfold IsDegenerate
+  intro h_Gbot H inst h_ind h_Hbot
+  rw [H.ne_bot_iff_nonempty_verts] at h_Hbot
+  obtain ⟨ x, hx ⟩ := h_Hbot
+  use x
+  constructor
+  · exact hx
+  · have hh : G.degree x = 0 := by
+      subst h_Gbot
+      convert SimpleGraph.bot_degree x
+    have h_le : H.degree x ≤ G.degree x := H.degree_le x
+    rw [hh] at h_le
+    exact le_trans h_le (Nat.zero_le d)
+
+theorem mon_degeneracy (d₁ d₂ : ℕ) : IsDegenerate G d₁ → d₁ ≤ d₂ → IsDegenerate G d₂ := by
+  intro h₁ h₂ H inst h_ind h_bot
+  obtain ⟨ v, hv, hdeg ⟩ := h₁ H h_ind h_bot
+  use v
+  constructor
+  · exact hv
+  · exact le_trans hdeg h₂
+
+theorem degeneracy_le_maxDegree [DecidableRel G.Adj] : IsDegenerate G G.maxDegree := by
+  unfold IsDegenerate
+  intro H insta h_ind h_bot
+  rw [H.ne_bot_iff_nonempty_verts] at h_bot
+  obtain ⟨ x, hx ⟩ := h_bot
+  use x
+  constructor
+  · exact hx
+  · exact le_trans (H.degree_le x) (G.degree_le_maxDegree x)
