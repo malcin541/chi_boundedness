@@ -102,4 +102,19 @@ theorem degeneracy_subgraph_monotone [DecidableRel G.Adj] (d : ℕ)
   constructor
   · exact hx_in_K
   · rw [← hx_eq] at hv_deg
+    have h_Kverts_equal : K.verts = K'.verts := by aesop_graph
+    have h_neiSets_equal : K'.neighborSet x = K.neighborSet x := by
+      have h_nei_iff_nei' : ∀ w : H.verts, ↑w ∈ K'.neighborSet x ↔ w ∈ K.neighborSet x := by
+        aesop_graph
+      apply Set.ext_iff.mpr
+      intro y
+      by_cases hy : (y ∈ H.verts)
+      · simp_all
+      · have h₁ : y ∉ K'.neighborSet x := by sorry
+        -- have h₂ : y ∉ ↑(K.neighborSet x) := by sorry
+        sorry
+    have h_degrees_equal : K'.degree x = K.degree x := by
+      unfold SimpleGraph.Subgraph.degree
+      rw [h_neiSets_equal]
+
     sorry
