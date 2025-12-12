@@ -110,11 +110,22 @@ theorem degeneracy_subgraph_monotone [DecidableRel G.Adj] (d : ℕ)
       intro y
       by_cases hy : (y ∈ H.verts)
       · simp_all
-      · have h₁ : y ∉ K'.neighborSet x := by sorry
-        -- have h₂ : y ∉ ↑(K.neighborSet x) := by sorry
-        sorry
+      · have h₁ : y ∉ K'.neighborSet x := by
+          have h₃ : y ∉ K'.verts := by grind
+          exact Set.notMem_subset (K'.neighborSet_subset_verts x) h₃
+        have h₂ : y ∉ ↑(Subtype.val '' K.neighborSet x) := by grind
+        simp [h₁, h₂]
     have h_degrees_equal : K'.degree x = K.degree x := by
-      unfold SimpleGraph.Subgraph.degree
-      rw [h_neiSets_equal]
-
+      rw [← K'.finset_card_neighborSet_eq_degree]
+      rw [← K.finset_card_neighborSet_eq_degree]
+      simp [h_neiSets_equal]
+      -- Lean reports here that the goal is:
+      --  ⊢ #(image Subtype.val (K.neighborSet x).toFinset) = Fintype.card ↑(K.neighborSet x)
+      sorry
+    rw [← h_degrees_equal]
+    -- Lean error:
+    -- Tactic `rewrite` failed: Did not find an occurrence of the pattern
+    --    K.degree x
+    -- in the target expression
+    --    K.degree x ≤ d
     sorry
