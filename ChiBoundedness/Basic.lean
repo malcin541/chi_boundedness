@@ -4,17 +4,6 @@ open Finset Fintype
 
 variable {V : Type*} [Fintype V] [DecidableEq V] [Inhabited V]
 
--- variable {G : SimpleGraph V} {H : SimpleGraph V}
-
--- variable [iFinEdgeG : ∀ v : V, Fintype (G.neighborSet v)]
--- variable [iFinEdgeH : ∀ v : V, Fintype (H.neighborSet v)]
-
--- variable [iDecGAdj : DecidableRel G.Adj]
--- variable [iDecHAdj : DecidableRel H.Adj]
-
-
-
-
 omit [DecidableEq V] [Inhabited V] in
 /- Some unimportant stuff needed because SimpleGraph can be infinite -/
 lemma finite_graph_chromaticNumber_ne_top
@@ -23,8 +12,6 @@ lemma finite_graph_chromaticNumber_ne_top
   rw [G.chromaticNumber_ne_top_iff_exists]
   use Fintype.card V
   exact G.colorable_of_fintype
-
-
 
 omit [DecidableEq V] [Inhabited V] in
 -- omit iDecV iInhabV iFinEdgeG iDecGAdj in
@@ -63,7 +50,6 @@ def IsDegenerate (G : SimpleGraph V) (d : ℕ)
   : Prop :=
   ∀ (H : SimpleGraph V) [DecidableRel H.Adj], (H.IsSubgraph G) → ∃ v : V, (H.degree v) ≤ d
 
-
 omit [DecidableEq V] in
 theorem empty_zero_degenerate (G : SimpleGraph V)
     [DecidableRel G.Adj]
@@ -90,16 +76,6 @@ theorem non_degeneracy (G : SimpleGraph V) (d₁ d₂ : ℕ)
   apply le_trans hdeg
   assumption
 
-omit [Fintype V] [DecidableEq V] [Inhabited V] in
-theorem SimpleGraph.IsSubgraph.degree_le
-  (G H : SimpleGraph V)
-  [∀ v : V, Fintype (G.neighborSet v)]
-  [∀ v : V, Fintype (H.neighborSet v)]
-  (hsub : H.IsSubgraph G) :
-  ∀ v : V, H.degree v  ≤ G.degree v := by
-  intro v
-  exact degree_le_of_le hsub
-
 
 omit [DecidableEq V] [Inhabited V] in
 theorem SimpleGraph.IsSubgraph.sub_degree_le_maxDegree
@@ -110,9 +86,10 @@ theorem SimpleGraph.IsSubgraph.sub_degree_le_maxDegree
   (hsub : H.IsSubgraph G):
   ∀ v : V, H.degree v ≤ G.maxDegree := by
   intro v
-  apply le_trans (degree_le G H hsub v) (G.degree_le_maxDegree v)
-
-
+  have degree_le' : ∀ v : V, H.degree v  ≤ G.degree v := by
+    intro v
+    exact degree_le_of_le hsub
+  apply le_trans (degree_le' v) (G.degree_le_maxDegree v)
 
 omit [DecidableEq V] in
 theorem degeneracy_le_maxDegree
@@ -125,13 +102,11 @@ theorem degeneracy_le_maxDegree
   apply SimpleGraph.IsSubgraph.sub_degree_le_maxDegree
   exact hsub
 
-
-
-
 omit [DecidableEq V] [Inhabited V] in
 theorem degeneracy_subgraph_monotone
   (d : ℕ)
   (G H : SimpleGraph V)
+  [∀ v : V, Fintype (G.neighborSet v)]
   [DecidableRel H.Adj]
   (hsub : H.IsSubgraph G) :
   IsDegenerate G d → IsDegenerate H d := by
@@ -142,7 +117,6 @@ theorem degeneracy_subgraph_monotone
     specialize h_degenerate_G H hsub
     obtain ⟨v, hdegHv⟩ := h_degenerate_G
     use v
-    have s₁ : K.degree v ≤ H.degree v := by
-      apply SimpleGraph.IsSubgraph.degree_le
-      simp [h_KsubH]
-    apply le_trans s₁ hdegHv
+    have degree_le' : K.degree v  ≤ H.degree v := by
+      exact SimpleGraph.degree_le_of_le h_KsubH
+    apply le_trans degree_le' hdegHv
