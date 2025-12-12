@@ -114,28 +114,35 @@ theorem SimpleGraph.IsSubgraph.sub_degree_le_maxDegree
 
 
 
-
+omit [DecidableEq V] in
 theorem degeneracy_le_maxDegree
   (G : SimpleGraph V)
-  [DecidableRel G.Adj] : IsDegenerate G G.maxDegree := by
+  [DecidableRel G.Adj]
+  : IsDegenerate G G.maxDegree := by
   unfold IsDegenerate
   intro H insta hsub
   use default
-  apply SimpleGraph.IsSubgraph.sub_degree_le_maxDegree hsub
+  apply SimpleGraph.IsSubgraph.sub_degree_le_maxDegree
+  exact hsub
 
 
-set_option diagnostics true
 
+
+omit [DecidableEq V] [Inhabited V] in
 theorem degeneracy_subgraph_monotone
   (d : ℕ)
-  (hsub : H.IsSubgraph G):
+  (G H : SimpleGraph V)
+  [DecidableRel H.Adj]
+  (hsub : H.IsSubgraph G) :
   IsDegenerate G d → IsDegenerate H d := by
     intro h_degenerate_G
-    simp_all [IsDegenerate]
+    simp [IsDegenerate]
+    simp [IsDegenerate] at h_degenerate_G
     intro K iDecAdjK h_KsubH
     specialize h_degenerate_G H hsub
     obtain ⟨v, hdegHv⟩ := h_degenerate_G
     use v
     have s₁ : K.degree v ≤ H.degree v := by
-      exact SimpleGraph.IsSubgraph.degree_le h_KsubH v
+      apply SimpleGraph.IsSubgraph.degree_le
+      simp [h_KsubH]
     apply le_trans s₁ hdegHv
