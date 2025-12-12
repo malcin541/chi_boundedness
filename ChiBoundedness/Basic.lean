@@ -1,26 +1,38 @@
-import Mathlib.Combinatorics.SimpleGraph.Basic
-import Mathlib.Combinatorics.SimpleGraph.Clique
-import Mathlib.Combinatorics.SimpleGraph.Coloring
-import Mathlib.Data.Set.Card
 import Mathlib
 
 open Finset Fintype
 
-variable {V : Type*} [Fintype V] {G : SimpleGraph V}
+variable {V : Type*} [Fintype V] [DecidableEq V] [Inhabited V]
 
-set_option diagnostics true
+-- variable {G : SimpleGraph V} {H : SimpleGraph V}
 
+-- variable [iFinEdgeG : ∀ v : V, Fintype (G.neighborSet v)]
+-- variable [iFinEdgeH : ∀ v : V, Fintype (H.neighborSet v)]
+
+-- variable [iDecGAdj : DecidableRel G.Adj]
+-- variable [iDecHAdj : DecidableRel H.Adj]
+
+
+
+
+omit [DecidableEq V] [Inhabited V] in
 /- Some unimportant stuff needed because SimpleGraph can be infinite -/
-lemma finite_graph_chromaticNumber_ne_top :
+lemma finite_graph_chromaticNumber_ne_top
+    (G : SimpleGraph V) :
     G.chromaticNumber ≠ ⊤ := by
   rw [G.chromaticNumber_ne_top_iff_exists]
   use Fintype.card V
   exact G.colorable_of_fintype
 
-lemma size_le_chromaticNumber_times_indepNumber :
+
+
+omit [DecidableEq V] [Inhabited V] in
+-- omit iDecV iInhabV iFinEdgeG iDecGAdj in
+lemma size_le_chromaticNumber_times_indepNumber
+    (G : SimpleGraph V) :
     Fintype.card V ≤ G.chromaticNumber.toNat * G.indepNum := by
   have hcol : G.Colorable G.chromaticNumber.toNat := by
-    exact G.colorable_of_chromaticNumber_ne_top finite_graph_chromaticNumber_ne_top
+    exact G.colorable_of_chromaticNumber_ne_top (finite_graph_chromaticNumber_ne_top G)
   /- Define optimum set of colors and coloring -/
   let opt_colors := Fin G.chromaticNumber.toNat
   have h_opt_colors_eq_chi : G.chromaticNumber = Fintype.card opt_colors := by
@@ -43,90 +55,87 @@ lemma size_le_chromaticNumber_times_indepNumber :
   apply Finset.card_le_mul_card_image_of_maps_to (f := opt_coloring)
   case Hf => simp
   case hn =>
-    simp_all
+    simp_all only [Set.toFinset_card, card_ofFinset, mem_univ, SimpleGraph.completeGraph_eq_top,
+      forall_const]
     exact h_cc_small
 
-def IsDegenerate (G : SimpleGraph V) (d : ℕ) : Prop :=
-  ∀ (H : G.Subgraph) [DecidableRel H.Adj], H ≠ ⊥
-    → ∃ v ∈ H.verts, (H.degree v) ≤ d
+def IsDegenerate (G : SimpleGraph V) (d : ℕ)
+  : Prop :=
+  ∀ (H : SimpleGraph V) [DecidableRel H.Adj], (H.IsSubgraph G) → ∃ v : V, (H.degree v) ≤ d
 
-theorem empty_zero_degenerate (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
-     (G = ⊥) → IsDegenerate G d := by
+
+omit [DecidableEq V] in
+theorem empty_zero_degenerate (G : SimpleGraph V)
+    [DecidableRel G.Adj]
+    (d : ℕ) :
+    (G = ⊥) → IsDegenerate G d := by
   unfold IsDegenerate
-  intro h_Gbot H inst h_Hbot
-  rw [H.ne_bot_iff_nonempty_verts] at h_Hbot
-  obtain ⟨ x, hx ⟩ := h_Hbot
-  use x
-  constructor
-  · exact hx
-  · have hh : G.degree x = 0 := by
-      subst h_Gbot
-      convert SimpleGraph.bot_degree x
-    have h_le : H.degree x ≤ G.degree x := H.degree_le x
-    rw [hh] at h_le
-    exact le_trans h_le (Nat.zero_le d)
+  intro h_Gbot H inst h_sub
+  simp_all
+  use default
+  have deg_default : H.degree default = 0 := by
+    apply (SimpleGraph.degree_eq_zero_iff_notMem_support H default).mpr
+    simp_all [SimpleGraph.support]
+  simp [deg_default]
 
-theorem mon_degeneracy (d₁ d₂ : ℕ) : IsDegenerate G d₁ → d₁ ≤ d₂ → IsDegenerate G d₂ := by
-  intro h₁ h₂ H inst h_bot
-  obtain ⟨ v, hv, hdeg ⟩ := h₁ H h_bot
+
+omit [DecidableEq V] [Inhabited V] in
+theorem non_degeneracy (G : SimpleGraph V) (d₁ d₂ : ℕ)
+  : IsDegenerate G d₁ → d₁ ≤ d₂ → IsDegenerate G d₂ := by
+  intro h₁ h₂ H inst hsub
+  unfold IsDegenerate at h₁
+  specialize h₁ H hsub
+  obtain ⟨ v, hdeg ⟩ := h₁
   use v
-  constructor
-  · exact hv
-  · exact le_trans hdeg h₂
+  apply le_trans hdeg
+  assumption
 
-theorem degeneracy_le_maxDegree [DecidableRel G.Adj] : IsDegenerate G G.maxDegree := by
+omit [Fintype V] [DecidableEq V] [Inhabited V] in
+theorem SimpleGraph.IsSubgraph.degree_le
+  (G H : SimpleGraph V)
+  [∀ v : V, Fintype (G.neighborSet v)]
+  [∀ v : V, Fintype (H.neighborSet v)]
+  (hsub : H.IsSubgraph G) :
+  ∀ v : V, H.degree v  ≤ G.degree v := by
+  intro v
+  exact degree_le_of_le hsub
+
+
+omit [DecidableEq V] [Inhabited V] in
+theorem SimpleGraph.IsSubgraph.sub_degree_le_maxDegree
+  (G H : SimpleGraph V)
+  [∀ v : V, Fintype (H.neighborSet v)]
+  [DecidableRel G.Adj]
+  [DecidableRel H.Adj]
+  (hsub : H.IsSubgraph G):
+  ∀ v : V, H.degree v ≤ G.maxDegree := by
+  intro v
+  apply le_trans (degree_le G H hsub v) (G.degree_le_maxDegree v)
+
+
+
+
+theorem degeneracy_le_maxDegree
+  (G : SimpleGraph V)
+  [DecidableRel G.Adj] : IsDegenerate G G.maxDegree := by
   unfold IsDegenerate
-  intro H insta h_bot
-  rw [H.ne_bot_iff_nonempty_verts] at h_bot
-  obtain ⟨ x, hx ⟩ := h_bot
-  use x
-  constructor
-  · exact hx
-  · exact le_trans (H.degree_le x) (G.degree_le_maxDegree x)
+  intro H insta hsub
+  use default
+  apply SimpleGraph.IsSubgraph.sub_degree_le_maxDegree hsub
 
-theorem degeneracy_subgraph_monotone [DecidableRel G.Adj] (d : ℕ)
-  (H : G.Subgraph) [DecidableRel H.Adj] [DecidablePred (· ∈ H.verts)] :
-    IsDegenerate G d → IsDegenerate H.coe d := by
-  classical
-  intro h_Gdeg K inst h_Kbot
-  let K' := H.coeSubgraph K
-  have h_K'bot : K' ≠ ⊥ := by
-    rw [K'.ne_bot_iff_nonempty_verts]
-    rw [K.ne_bot_iff_nonempty_verts] at h_Kbot
-    aesop_graph
-  obtain h := h_Gdeg K' h_K'bot
-  obtain ⟨ v, hv_mem, hv_deg ⟩ := h
-  have hv_image : v ∈ Subtype.val '' K.verts := hv_mem
-  obtain ⟨x, hx_in_K, hx_eq⟩ := hv_image
-  use x
-  constructor
-  · exact hx_in_K
-  · rw [← hx_eq] at hv_deg
-    have h_Kverts_equal : K.verts = K'.verts := by aesop_graph
-    have h_neiSets_equal : K'.neighborSet x = K.neighborSet x := by
-      have h_nei_iff_nei' : ∀ w : H.verts, ↑w ∈ K'.neighborSet x ↔ w ∈ K.neighborSet x := by
-        aesop_graph
-      apply Set.ext_iff.mpr
-      intro y
-      by_cases hy : (y ∈ H.verts)
-      · simp_all
-      · have h₁ : y ∉ K'.neighborSet x := by
-          have h₃ : y ∉ K'.verts := by grind
-          exact Set.notMem_subset (K'.neighborSet_subset_verts x) h₃
-        have h₂ : y ∉ ↑(Subtype.val '' K.neighborSet x) := by grind
-        simp [h₁, h₂]
-    have h_degrees_equal : K'.degree x = K.degree x := by
-      rw [← K'.finset_card_neighborSet_eq_degree]
-      rw [← K.finset_card_neighborSet_eq_degree]
-      simp [h_neiSets_equal]
-      --  ⊢ #(image Subtype.val (K.neighborSet x).toFinset) = Fintype.card ↑(K.neighborSet x)
-      refine card_eq_of_equiv_fintype ?_
-      --  ⊢ ↥(image Subtype.val (K.neighborSet x).toFinset) ≃ ↑(K.neighborSet x)
-      sorry
-    rw [← h_degrees_equal]
-    -- Lean error:
-    -- Tactic `rewrite` failed: Did not find an occurrence of the pattern
-    --    K.degree x
-    -- in the target expression
-    --    K.degree x ≤ d
-    sorry
+
+set_option diagnostics true
+
+theorem degeneracy_subgraph_monotone
+  (d : ℕ)
+  (hsub : H.IsSubgraph G):
+  IsDegenerate G d → IsDegenerate H d := by
+    intro h_degenerate_G
+    simp_all [IsDegenerate]
+    intro K iDecAdjK h_KsubH
+    specialize h_degenerate_G H hsub
+    obtain ⟨v, hdegHv⟩ := h_degenerate_G
+    use v
+    have s₁ : K.degree v ≤ H.degree v := by
+      exact SimpleGraph.IsSubgraph.degree_le h_KsubH v
+    apply le_trans s₁ hdegHv
