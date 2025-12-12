@@ -119,8 +119,9 @@ theorem degeneracy_subgraph_monotone [DecidableRel G.Adj] (d : ℕ)
       rw [← K'.finset_card_neighborSet_eq_degree]
       rw [← K.finset_card_neighborSet_eq_degree]
       simp [h_neiSets_equal]
-      -- Lean reports here that the goal is:
       --  ⊢ #(image Subtype.val (K.neighborSet x).toFinset) = Fintype.card ↑(K.neighborSet x)
+      refine card_eq_of_equiv_fintype ?_
+      --  ⊢ ↥(image Subtype.val (K.neighborSet x).toFinset) ≃ ↑(K.neighborSet x)
       sorry
     rw [← h_degrees_equal]
     -- Lean error:
