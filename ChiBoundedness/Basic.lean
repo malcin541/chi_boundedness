@@ -48,7 +48,7 @@ lemma size_le_chromaticNumber_times_indepNumber
 
 def IsDegenerate (G : SimpleGraph V) (d : ℕ)
   : Prop :=
-  ∀ (H : SimpleGraph V) [DecidableRel H.Adj], (H.IsSubgraph G) → ∃ v : V, (H.degree v) ≤ d
+  ∀ (H : SimpleGraph V) [DecidableRel H.Adj], (H ≤ G) → ∃ v : V, (H.degree v) ≤ d
 
 omit [DecidableEq V] in
 theorem empty_zero_degenerate (G : SimpleGraph V)
@@ -83,7 +83,7 @@ theorem SimpleGraph.IsSubgraph.sub_degree_le_maxDegree
   [∀ v : V, Fintype (H.neighborSet v)]
   [DecidableRel G.Adj]
   [DecidableRel H.Adj]
-  (hsub : H.IsSubgraph G):
+  (hsub : H ≤ G):
   ∀ v : V, H.degree v ≤ G.maxDegree := by
   intro v
   have degree_le' : ∀ v : V, H.degree v  ≤ G.degree v := by
@@ -108,7 +108,7 @@ theorem degeneracy_subgraph_monotone
   (G H : SimpleGraph V)
   [∀ v : V, Fintype (G.neighborSet v)]
   [DecidableRel H.Adj]
-  (hsub : H.IsSubgraph G) :
+  (hsub : H ≤ G) :
   IsDegenerate G d → IsDegenerate H d := by
     intro h_degenerate_G
     simp [IsDegenerate]
