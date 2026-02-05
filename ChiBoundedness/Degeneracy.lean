@@ -128,8 +128,7 @@ theorem degeneracy_subgraph_monotone (G : SimpleGraph V) (H : G.Subgraph) (d : �
     simp only at hy₂
     rw [hy₂] at hy_in_Hverts
     use hy_in_Hverts
-    simp only [Set.mem_setOf_eq] at hy₁
-    simp only [hy₂] at hy₁
+    simp only [Set.mem_setOf_eq, hy₂] at hy₁
     exact hy₁
 
 end Degeneracy
