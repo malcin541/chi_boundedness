@@ -95,9 +95,41 @@ theorem degeneracy_le_maxDegree (G : SimpleGraph V) : IsDegenerate G G.maxDegree
 theorem degeneracy_subgraph_monotone (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
     IsDegenerate G d → IsDegenerate H.coe d := by
   intro h K h_K_neq_bot
-  obtain K' := H.coeSubgraph K
-  have h_K'_neq_bot : K' ≠ ⊥ := by sorry
-  obtain ⟨ v, hv ⟩ := h K' h_K'_neq_bot
-  sorry
+  let K' := H.coeSubgraph K
+  have h_verts_equal : (K.verts : Set V) = K'.verts := by trivial
+  have h_verts_equal' : K.verts = Subtype.val⁻¹' K'.verts := by
+    rw [← h_verts_equal, Set.preimage_image_eq _ Subtype.val_injective]
+  have h_K'_neq_bot : K' ≠ ⊥ := by
+    apply K'.ne_bot_iff_nonempty_verts.mpr
+    apply K.ne_bot_iff_nonempty_verts.mp at h_K_neq_bot
+    exact Set.Nonempty.image _ h_K_neq_bot
+  obtain ⟨ v, ⟨ hv_where, hv_deg ⟩ ⟩ := h K' h_K'_neq_bot
+  have h_K_subset_H : (K.verts : Set V) ⊆ H.verts := by simp
+  have h_v_in_Hverts : v ∈ H.verts := h_K_subset_H hv_where
+  let v' := H.vert v h_v_in_Hverts
+  use v'
+  constructor
+  · rw [h_verts_equal']
+    exact hv_where
+  · suffices h_deg_equal : K.degree v' ≤ K'.degree v by
+      exact le_trans h_deg_equal hv_deg
+    suffices h_nei_subset : (K.neighborSet v' : Set V) ⊆ K'.neighborSet v by
+      unfold SimpleGraph.Subgraph.degree
+      simp only [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card',
+                 ← (Set.ncard_image_of_injective _ Subtype.val_injective),
+                 Set.ncard_le_ncard h_nei_subset]
+    intro x hx
+    unfold SimpleGraph.Subgraph.neighborSet
+    unfold SimpleGraph.Subgraph.neighborSet at hx
+    obtain ⟨ ⟨ y, hy_in_Hverts ⟩ , ⟨ hy₁, hy₂ ⟩ ⟩ := hx
+    simp only [Set.mem_setOf_eq]
+    apply (H.coeSubgraph_adj K v x).mpr
+    use h_v_in_Hverts
+    simp only at hy₂
+    rw [hy₂] at hy_in_Hverts
+    use hy_in_Hverts
+    simp only [Set.mem_setOf_eq] at hy₁
+    simp only [hy₂] at hy₁
+    exact hy₁
 
 end Degeneracy
