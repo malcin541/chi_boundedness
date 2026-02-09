@@ -131,4 +131,33 @@ theorem degeneracy_subgraph_monotone (G : SimpleGraph V) (H : G.Subgraph) (d : �
     simp only [Set.mem_setOf_eq, hy₂] at hy₁
     exact hy₁
 
+theorem degeneracy_subgraph_monotone' (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
+    IsDegenerate' G d → IsDegenerate' H.coe d := by
+  intro h_G_deg A h_A_nonempty
+  let A_in_G := (A : Set V)
+  obtain ⟨ v_in_G, ⟨ h_v_where, h_v_nei_card⟩ ⟩ :=
+    h_G_deg A_in_G (Set.Nonempty.image Subtype.val h_A_nonempty)
+  have h_A_subset_H : A_in_G ⊆ H.verts := by exact Subtype.coe_image_subset H.verts A
+  have h_v_in_H : v_in_G ∈ H.verts := by exact Set.mem_of_subset_of_mem h_A_subset_H h_v_where
+  let v := H.vert v_in_G h_v_in_H
+  have h_v_in_A : v ∈ A := by exact Set.mem_of_mem_image_val h_v_where
+  use v
+  constructor
+  · exact h_v_in_A
+  · suffices h : Subtype.val '' {u | u ∈ A ∧ H.coe.Adj u v} ⊆ {u | u ∈ A_in_G ∧ G.Adj u v_in_G} by
+      rw [← Set.ncard_image_of_injective _ Subtype.val_injective]
+      exact le_trans (Set.ncard_le_ncard h) h_v_nei_card
+    intro u ⟨ u', ⟨ h_u'_where, h_u'_adj ⟩, h_u'_eq ⟩
+    constructor
+    · rw [← h_u'_eq]
+      exact Set.mem_image_of_mem Subtype.val h_u'_where
+    · rw [H.coe_adj u' v, h_u'_eq] at h_u'_adj
+      exact SimpleGraph.Subgraph.Adj.adj_sub h_u'_adj
+
+theorem degeneracy_subgraph_monotone'' (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
+    IsDegenerate G d → IsDegenerate H.coe d := fun h =>
+      (degeneracy_def_equivalent H.coe d).mpr
+        ((degeneracy_subgraph_monotone' G H d)
+          ((degeneracy_def_equivalent G d).mp h))
+
 end Degeneracy
