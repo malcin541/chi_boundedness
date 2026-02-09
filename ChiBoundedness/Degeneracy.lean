@@ -160,4 +160,56 @@ theorem degeneracy_subgraph_monotone'' (G : SimpleGraph V) (H : G.Subgraph) (d :
         ((degeneracy_subgraph_monotone' G H d)
           ((degeneracy_def_equivalent G d).mp h))
 
+theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
+    IsDegenerate G d -> G.Colorable (d+1) := by
+  induction hcard : Fintype.card V generalizing V with
+  | zero =>
+    intro _
+    exact @SimpleGraph.Colorable.of_isEmpty V G (Fintype.card_eq_zero_iff.mp hcard) (d + 1)
+  | succ n ih =>
+    intro h_G_deg
+    let G_as_subgraph := (⊤ : G.Subgraph)
+    have h_G_card : G_as_subgraph.verts.ncard = n + 1 := by
+      rw [Set.ncard_eq_toFinset_card', Set.toFinset_card,
+          SimpleGraph.Subgraph.verts_top, Fintype.card_setUniv]
+      exact hcard
+    have h_G_nonempty : G_as_subgraph ≠ ⊥ := by
+      suffices h_V_nonempty : Nonempty V by
+        refine (SimpleGraph.Subgraph.ne_bot_iff_nonempty_verts G_as_subgraph).mpr ?_
+        exact Set.univ_nonempty
+      apply Fintype.card_pos_iff.mp
+      simp only [hcard, Nat.succ_pos n]
+    obtain ⟨ v, hv ⟩ := h_G_deg G_as_subgraph h_G_nonempty
+    let G' := G_as_subgraph.deleteVerts {v}
+    have h_G'_card : Fintype.card G'.verts = n := by
+      suffices h₁ : G'.verts.ncard = n by
+        rw [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card', h₁]
+      have h₂ : G'.verts = G_as_subgraph.verts \ {v} := SimpleGraph.Subgraph.deleteVerts_verts
+      rw [SimpleGraph.Subgraph.deleteVerts_verts, Set.ncard_diff_singleton_of_mem hv.left, h_G_card]
+      rfl
+    have h_G'_deg : IsDegenerate G'.coe d := by
+      apply degeneracy_subgraph_monotone
+      exact h_G_deg
+    have h_G'_colorable : G'.coe.Colorable (d + 1) := ih G'.coe h_G'_card h_G'_deg
+    obtain ⟨ f' ⟩ := h_G'_colorable
+    let nv := {u | G.Adj u v ∧ u ∈ G'.verts}
+    have h_nv_card : nv.ncard ≤ d := by
+      suffices h_subset : nv ⊆ G.neighborSet v by
+        rw [← SimpleGraph.Subgraph.neighborSet_top] at h_subset
+        refine le_trans (Set.ncard_le_ncard h_subset) ?_
+        rw [Set.ncard_eq_toFinset_card', Set.toFinset_card]
+        exact hv.right
+      intro u ⟨ h_u_adj, _ ⟩
+      exact (G.adj_comm u v).mp h_u_adj
+    let used_cols := f' '' (Subtype.val⁻¹' nv)
+    have h_used_cols_card : used_cols.ncard ≤ d := by
+      calc
+      _ ≤ (Subtype.val⁻¹' nv).ncard := Set.ncard_image_le
+      _ = (Subtype.val⁻¹' nv).encard.toNat := by rfl
+      _ ≤ nv.encard.toNat := by sorry
+      _ = nv.ncard := by rfl
+      --Set.ncard_preimage_of_injective_subset_range Subtype.val_injective (by sorry)
+      _ ≤ d := h_nv_card
+    sorry
+
 end Degeneracy
