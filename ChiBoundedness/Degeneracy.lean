@@ -1,6 +1,7 @@
 import Mathlib
 
 set_option linter.style.openClassical false
+set_option linter.unusedFintypeInType false
 
 section Degeneracy
 
