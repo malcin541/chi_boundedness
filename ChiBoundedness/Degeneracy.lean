@@ -187,6 +187,10 @@ theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
         rw [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card', h₁]
       rw [SimpleGraph.Subgraph.deleteVerts_verts, Set.ncard_diff_singleton_of_mem hv.left, h_G_card]
       rfl
+    have h_not_v_in_G' : ∀ x : V, x ≠ v → x ∈ G'.verts := by
+      intro x hx
+      rw [h_G'_verts]
+      exact Set.mem_diff_of_mem trivial hx
     have h_G'_deg : IsDegenerate G'.coe d := by
       apply degeneracy_subgraph_monotone
       exact h_G_deg
@@ -220,9 +224,33 @@ theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
         rw [h_G'_verts, SimpleGraph.Subgraph.verts_top]
         simp [Set.mem_diff, Set.mem_singleton_iff, h]
       f' ⟨ u, h_u_in_G' ⟩
+    have h_f_f'_equal: ∀ x : V, ∀ hx: x ∈ G'.verts, f' ⟨ x, hx ⟩  = f x := by grind
+    have h_fv_eq_a : f v = a := by grind
+    have h_f_v_valid : ∀ x : V, G.Adj v x → f v ≠ f x := by
+      intro x h_adj
+      have h_x_ne_v : x ≠ v := G.ne_of_adj h_adj.symm
+      have h_x_in_G' : x ∈ G'.verts := h_not_v_in_G' x h_x_ne_v
+      rw [h_fv_eq_a, ← h_f_f'_equal x h_x_in_G']
+      suffices f' ⟨ x, h_x_in_G' ⟩ ∈ used_cols by grind
+      suffices x ∈ nv by grind
+      exact ⟨ h_adj.symm, h_x_in_G' ⟩
     have h_f_valid : ∀ {x y : V}, G.Adj x y → f x ≠ f y := by
-      intro x y
-      sorry
+      intro x y h_adj
+      by_cases h₁ : x = v
+      · rw [h₁]
+        rw [h₁] at h_adj
+        exact h_f_v_valid y h_adj
+      · by_cases h₂ : y = v
+        · rw [h₂]
+          rw [h₂] at h_adj
+          exact (h_f_v_valid x h_adj.symm).symm
+        · have h_x_in_G' : x ∈ G'.verts := h_not_v_in_G' x h₁
+          have h_y_in_G' : y ∈ G'.verts := h_not_v_in_G' y h₂
+          rw [← h_f_f'_equal x h_x_in_G', ← h_f_f'_equal y h_y_in_G']
+          suffices h_xy_adj_in_G' : G'.coe.Adj ⟨ x, h_x_in_G' ⟩  ⟨ y, h_y_in_G' ⟩  by
+            exact f'.valid h_xy_adj_in_G'
+          simp only [SimpleGraph.Subgraph.coe_adj]
+          exact SimpleGraph.Subgraph.deleteVerts_adj.mpr ⟨ by trivial, h₁, by trivial, h₂, h_adj ⟩
     have f_as_col := (SimpleGraph.Coloring.mk f h_f_valid).colorable
     rw [Fintype.card_fin] at f_as_col
     exact f_as_col
