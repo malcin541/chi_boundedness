@@ -232,7 +232,6 @@ theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
       have h_x_ne_v : x ≠ v := G.ne_of_adj h_adj.symm
       have h_x_in_G' : x ∈ G'.verts := h_not_v_in_G' x h_x_ne_v
       rw [h_fv_eq_a, ← h_f_f'_equal x h_x_in_G']
-      suffices f' ⟨ x, h_x_in_G' ⟩ ∈ used_cols by grind
       suffices x ∈ nv by grind
       exact ⟨ h_adj.symm, h_x_in_G' ⟩
     have h_f_valid : ∀ {x y : V}, G.Adj x y → f x ≠ f y := by
