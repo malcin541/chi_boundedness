@@ -181,10 +181,10 @@ theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
       simp only [hcard, Nat.succ_pos n]
     obtain ⟨ v, hv ⟩ := h_G_deg G_as_subgraph h_G_nonempty
     let G' := G_as_subgraph.deleteVerts {v}
+    have h_G'_verts : G'.verts = G_as_subgraph.verts \ {v} := SimpleGraph.Subgraph.deleteVerts_verts
     have h_G'_card : Fintype.card G'.verts = n := by
       suffices h₁ : G'.verts.ncard = n by
         rw [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card', h₁]
-      have h₂ : G'.verts = G_as_subgraph.verts \ {v} := SimpleGraph.Subgraph.deleteVerts_verts
       rw [SimpleGraph.Subgraph.deleteVerts_verts, Set.ncard_diff_singleton_of_mem hv.left, h_G_card]
       rfl
     have h_G'_deg : IsDegenerate G'.coe d := by
@@ -206,10 +206,25 @@ theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
       calc
       _ ≤ (Subtype.val⁻¹' nv).ncard := Set.ncard_image_le
       _ = (Subtype.val⁻¹' nv).encard.toNat := by rfl
-      _ ≤ nv.encard.toNat := by sorry
+      _ ≤ nv.encard.toNat := by
+        refine ENat.toNat_le_toNat (Set.encard_preimage_val_le_encard_right G'.verts nv) ?_
+        simp only [ne_eq, Set.encard_eq_top_iff, Set.not_infinite]
+        exact nv.toFinite
       _ = nv.ncard := by rfl
-      --Set.ncard_preimage_of_injective_subset_range Subtype.val_injective (by sorry)
       _ ≤ d := h_nv_card
-    sorry
+    have h_sizes_lt : used_cols.ncard < (Set.univ : Set (Fin (d+1))).ncard := by
+        simp [h_used_cols_card]
+    obtain ⟨ a, ⟨ _, h_a_unused ⟩ ⟩ := Set.exists_mem_notMem_of_ncard_lt_ncard h_sizes_lt
+    let f : V → Fin (d+1) := fun u => if h : u = v then a else
+      have h_u_in_G' : u ∈ G'.verts := by
+        rw [h_G'_verts, SimpleGraph.Subgraph.verts_top]
+        simp [Set.mem_diff, Set.mem_singleton_iff, h]
+      f' ⟨ u, h_u_in_G' ⟩
+    have h_f_valid : ∀ {x y : V}, G.Adj x y → f x ≠ f y := by
+      intro x y
+      sorry
+    have f_as_col := (SimpleGraph.Coloring.mk f h_f_valid).colorable
+    rw [Fintype.card_fin] at f_as_col
+    exact f_as_col
 
 end Degeneracy
