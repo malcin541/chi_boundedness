@@ -310,7 +310,36 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
       apply degeneracy_subgraph_monotone
       exact h_G_deg
     obtain ⟨ o', ho' ⟩ := ih G'.coe h_G'_card h_G'_deg
-    sorry
+    let o : LinearOrder V := {
+      le x y :=
+        if hy : y = v then True
+        else if hx : x = v then False
+        else o'.le ⟨ x, h_not_v_in_G' x hx ⟩ ⟨ y, h_not_v_in_G' y hy ⟩
+      le_refl x := by simp
+      le_trans x y z hxy hyz := by grind
+      le_antisymm x y hxy hyx := by grind
+      le_total x y := by grind
+      toDecidableLE x y := by dsimp; exact inferInstance
+    }
+    letI := o
+    use o
+    intro w
+    by_cases h : w = v
+    · rw [h]
+      suffices h_subset : {u | G.Adj v u ∧ u < v } ⊆ {u | u ∈ Set.univ ∧ G.Adj u v} by
+        exact le_trans (Set.ncard_le_ncard h_subset) hv
+      intro u ⟨ h_u_adj_v , h_u_lt_v ⟩
+      simp [h_u_adj_v.symm]
+    · have hw₁ : o.le w v := by grind
+      have h₁ : ∀u, u < w → u ∈ G'.verts := by
+        intro u hu
+        have h₂ : u ≠ v := by exact ne_iff_lt_or_gt.mpr (Or.inl (lt_of_lt_of_le hu hw₁))
+        exact h_not_v_in_G' u h₂
+      let w' := (⟨ w, h_not_v_in_G' w h ⟩ : G'.verts)
+      let how := ho' w'
+      --suffices h_subset : {u | G.Adj w u ∧ u < w} ⊆ {u | G'.coe.Adj w' u ∧ u < w'} by
+      --  exact le_trans (Set.ncard_le_ncard h_subset) how
+      sorry
   · rintro ⟨ o, ho ⟩
     suffices h : IsDegenerate' G d by exact (degeneracy_def_equivalent G d).mpr h
     intro A h_A_Nonempty
