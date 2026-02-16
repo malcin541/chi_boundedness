@@ -330,16 +330,39 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
         exact le_trans (Set.ncard_le_ncard h_subset) hv
       intro u ⟨ h_u_adj_v , h_u_lt_v ⟩
       simp [h_u_adj_v.symm]
-    · have hw₁ : o.le w v := by grind
-      have h₁ : ∀u, u < w → u ∈ G'.verts := by
-        intro u hu
-        have h₂ : u ≠ v := by exact ne_iff_lt_or_gt.mpr (Or.inl (lt_of_lt_of_le hu hw₁))
-        exact h_not_v_in_G' u h₂
+    · have h_w_lt_v : o.le w v := by grind
+      have h_u_neq_v : ∀ u, u < w → u ≠ v := fun u hu =>
+        ne_iff_lt_or_gt.mpr (Or.inl (lt_of_lt_of_le hu h_w_lt_v))
+      have h_u_in_G' : ∀u, u < w → u ∈ G'.verts := fun u hu => h_not_v_in_G' u (h_u_neq_v u hu)
       let w' := (⟨ w, h_not_v_in_G' w h ⟩ : G'.verts)
       let how := ho' w'
-      --suffices h_subset : {u | G.Adj w u ∧ u < w} ⊆ {u | G'.coe.Adj w' u ∧ u < w'} by
-      --  exact le_trans (Set.ncard_le_ncard h_subset) how
-      sorry
+      have h_incl : ∀ u, ∀ h_w_adj_u : G.Adj w u, ∀ h_u_lt_w : u < w,
+          G'.coe.Adj w' ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ ∧ ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ < w' := by
+        intro u h_w_adj_u h_u_lt_w
+        constructor
+        · suffices h_adj_in_G' : G'.Adj w u by
+            exact SimpleGraph.Subgraph.Adj.coe h_adj_in_G'
+          apply SimpleGraph.Subgraph.deleteVerts_adj.mpr
+          exact ⟨ by rw [SimpleGraph.Subgraph.verts_top]; trivial,
+                  h,
+                  by rw [SimpleGraph.Subgraph.verts_top]; trivial,
+                  h_u_neq_v u h_u_lt_w,
+                  SimpleGraph.Subgraph.top_adj.mpr h_w_adj_u ⟩
+        · exact h_u_lt_w
+      let f (u' : {x // x ∈ G'.verts}) :=  (u' : V)
+      have h_f_inj : Function.Injective f := by
+        exact Subtype.val_injective
+      let S' := {u | G'.coe.Adj w' u ∧ u < w'}
+      let S := {u | G.Adj w u ∧ u < w}
+      have h_inc : ∀ u' : {x // x ∈ G'.verts}, u' ∈ S' → f u' ∈ S := by
+        sorry
+      have h_subset_range : S ⊆ Set.range f := by
+        sorry
+      have h_f_inv_S_is_S' : f⁻¹' S = S' := by
+        sorry
+      have h := Set.ncard_preimage_of_injective_subset_range h_f_inj h_subset_range
+      rw [← h, h_f_inv_S_is_S']
+      sorry -- exact ho' w'
   · rintro ⟨ o, ho ⟩
     suffices h : IsDegenerate' G d by exact (degeneracy_def_equivalent G d).mpr h
     intro A h_A_Nonempty
