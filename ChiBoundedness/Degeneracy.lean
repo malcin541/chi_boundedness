@@ -355,44 +355,24 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
           let h_u'_le_w' := h_o_to_o' u w h_u_ne_v h (Std.le_of_lt h_u_lt_w)
           exact @lt_of_le_of_ne (↑G'.verts) o'.toPartialOrder ⟨ u, h_not_v_in_G' u h_u_ne_v ⟩
             ⟨ w, h_not_v_in_G' w h ⟩ h_u'_le_w' (by grind)
-      let f (u' : {x // x ∈ G'.verts}) :=  (u' : V)
-      have h_f_inj : Function.Injective f := by
-        exact Subtype.val_injective
-      have h_f_in_G' : ∀ x' : { x // x ∈ G'.verts}, f x' ∈ G'.verts := fun x' ↦ Subtype.coe_prop x'
-      let S' := {u | G'.coe.Adj ⟨ w, h_not_v_in_G' w h ⟩ u ∧
-        @LT.lt (↑G'.verts) o'.toLT u ⟨ w, h_not_v_in_G' w h ⟩}
       let S := {u | G.Adj w u ∧ u < w}
-      have h_feq : ∀ x' : {x // x ∈ G'.verts}, x' = ⟨ f x', h_f_in_G' x'⟩ := fun x' ↦ SetCoe.ext rfl
-      have h_inc : ∀ u' : {x // x ∈ G'.verts}, u' ∈ S' → f u' ∈ S := by
-        intro u' ⟨ h_u'_adj_w', h_u'_lt_w' ⟩
-        have h_u_adj_w : G.Adj w (f u') :=
-          (SimpleGraph.adj_congr_of_sym2 G rfl).mp
-            (SimpleGraph.Subgraph.deleteVerts_adj.mp h_u'_adj_w').right.right.right.right
-        have h_u_lt_w : o.lt (f u') w := by
-          have h_w_in_G' : w ∈ G'.verts := h_not_v_in_G' w h
-          have h_u_in_G' : f u' ∈ G'.verts :=
-            G'.edge_vert (id (SimpleGraph.adj_symm G'.coe h_u'_adj_w'))
-          have h_u_neq_v : f u' ≠ v := by sorry
-          sorry
-        exact ⟨ h_u_adj_w, h_u_lt_w ⟩
-      have h_subset_range : S ⊆ Set.range f := by
-        intro u ⟨ _, h_u_lt_w ⟩
-        refine Set.mem_range.mpr ⟨ ⟨ u, h_u_in_G' u h_u_lt_w ⟩ ,
-          (congrFun rfl ∘ f) ⟨ w, h_not_v_in_G' w h ⟩ ⟩
-      have h_f_inv_S_is_S' : f⁻¹' S = S' := by
-        refine Set.ext ?_
-        intro x'
-        constructor
-        · intro hx'
-          have hx : f x' ∈ S := Set.mem_sep_iff.mpr hx'
-          let h := h_incl (f x') hx.left hx.right
-          rw [← h_feq x'] at h
-          exact Set.mem_setOf.mpr h
-        · intro hx'
-          exact Set.mem_preimage.mpr (h_inc x' hx')
-      have h := Set.ncard_preimage_of_injective_subset_range h_f_inj h_subset_range
-      rw [← h, h_f_inv_S_is_S']
-      exact how
+      let S' := {u' | G'.coe.Adj ⟨ w, h_not_v_in_G' w h ⟩ u' ∧
+            @LT.lt (↑G'.verts) o'.toLT u' ⟨ w, h_not_v_in_G' w h ⟩}
+      have h_S_to_G' : ∀ u ∈ S, u ∈ G'.verts := by
+        intro u ⟨ _ , h_u_lt_w ⟩
+        exact h_u_in_G' u h_u_lt_w
+      let f (u : S) := (⟨ u.val, h_S_to_G' u.val u.property ⟩ : G'.verts)
+      have h_f_inj : Function.Injective f := Set.inclusion_injective h_S_to_G'
+      have h_f_S_to_S' : Set.range f ⊆ S' := by
+        refine Set.range_subset_iff.mpr ?_
+        intro u
+        exact h_incl u u.property.left u.property.right
+      have h_f_ncard : (Set.range f).ncard = S.ncard := by
+        have h_f_ncard' := Set.ncard_image_of_injective (Set.univ : Set S) h_f_inj
+        rw [Set.image_univ, Set.ncard_univ] at h_f_ncard'
+        exact h_f_ncard'
+      rw [← h_f_ncard]
+      exact le_trans (Set.ncard_le_ncard h_f_S_to_S') how
   · rintro ⟨ o, ho ⟩
     suffices h : IsDegenerate' G d by exact (degeneracy_def_equivalent G d).mpr h
     intro A h_A_Nonempty
