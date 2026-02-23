@@ -322,7 +322,8 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
       toDecidableLE x y := by dsimp; exact inferInstance
     }
     have h_o_to_o': ∀ u₁ u₂ : V, ∀ h₁ : ¬u₁ = v, ∀ h₂ : ¬u₂ = v, o.le u₁ u₂ →
-      o'.le ⟨ u₁, h_not_v_in_G' u₁ h₁ ⟩ ⟨ u₂, h_not_v_in_G' u₂ h₂ ⟩ := by grind
+      @LE.le {x // x ∈ G'.verts} o'.toLE (⟨ u₁, h_not_v_in_G' u₁ h₁ ⟩ : {x // x ∈ G'.verts})
+        (⟨ u₂, h_not_v_in_G' u₂ h₂ ⟩ : {x // x ∈ G'.verts}) := by grind
     letI := o
     use o
     intro w
@@ -335,12 +336,11 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
     · have h_w_lt_v : o.le w v := by grind
       have h_u_neq_v : ∀ u, u < w → u ≠ v := fun u hu =>
         ne_iff_lt_or_gt.mpr (Or.inl (lt_of_lt_of_le hu h_w_lt_v))
-      have h_u_in_G' : ∀u, u < w → u ∈ G'.verts := fun u hu => h_not_v_in_G' u (h_u_neq_v u hu)
-      let w' := (⟨ w, h_not_v_in_G' w h ⟩ : G'.verts)
-      let how := ho' w'
+      have h_u_in_G' : ∀ u, u < w → u ∈ G'.verts := fun u hu => h_not_v_in_G' u (h_u_neq_v u hu)
+      let how := ho' ⟨ w, h_not_v_in_G' w h ⟩
       have h_incl : ∀ u, ∀ h_w_adj_u : G.Adj w u, ∀ h_u_lt_w : u < w,
-          G'.coe.Adj w' ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ ∧
-            @LT.lt (↑G'.verts) o'.toLT ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ w' := by
+          G'.coe.Adj ⟨ w, h_not_v_in_G' w h ⟩ ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ ∧
+            @LT.lt (↑G'.verts) o'.toLT ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ ⟨ w, h_not_v_in_G' w h ⟩ := by
         intro u h_w_adj_u h_u_lt_w
         constructor
         · suffices h_adj_in_G' : G'.Adj w u by
@@ -351,22 +351,16 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
                   by rw [SimpleGraph.Subgraph.verts_top]; trivial,
                   h_u_neq_v u h_u_lt_w,
                   SimpleGraph.Subgraph.top_adj.mpr h_w_adj_u ⟩
-        · have h_u_neq_w : u ≠ w := by exact ne_of_lt h_u_lt_w
-          have h_u_le_w : o.le u w := by exact Std.le_of_lt h_u_lt_w
-          have h_u_neq_v : ¬ u = v := h_u_neq_v u h_u_lt_w
-          have h_w_neq_v : ¬ w = v := h
-          let h_u'_le_w' := h_o_to_o' u w h_u_neq_v h_w_neq_v h_u_le_w
-          -- let u' : {x // x ∈ G'.verts } := ⟨ u, h_not_v_in_G' u h_u_neq_v ⟩
-          have h_w_w' : w' = ⟨ w, h_not_v_in_G' w h_w_neq_v ⟩ := by grind
-          rw [← h_w_w'] at h_u'_le_w'
-          have h_u'_neq_w' : ⟨ u, h_not_v_in_G' u h_u_neq_v ⟩ ≠ w' := by grind
-          have h_u'_lt_w' : ⟨ u, h_not_v_in_G' u h_u_neq_v ⟩ < w' := lt_of_le_of_ne h_u'_le_w'  h_u'_neq_w'
-          sorry
+        · have h_u_ne_v : ¬ u = v := h_u_neq_v u h_u_lt_w
+          let h_u'_le_w' := h_o_to_o' u w h_u_ne_v h (Std.le_of_lt h_u_lt_w)
+          exact @lt_of_le_of_ne (↑G'.verts) o'.toPartialOrder ⟨ u, h_not_v_in_G' u h_u_ne_v ⟩
+            ⟨ w, h_not_v_in_G' w h ⟩ h_u'_le_w' (by grind)
       let f (u' : {x // x ∈ G'.verts}) :=  (u' : V)
       have h_f_inj : Function.Injective f := by
         exact Subtype.val_injective
       have h_f_in_G' : ∀ x' : { x // x ∈ G'.verts}, f x' ∈ G'.verts := fun x' ↦ Subtype.coe_prop x'
-      let S' := {u | G'.coe.Adj w' u ∧ @LT.lt (↑G'.verts) o'.toLT u w'}
+      let S' := {u | G'.coe.Adj ⟨ w, h_not_v_in_G' w h ⟩ u ∧
+        @LT.lt (↑G'.verts) o'.toLT u ⟨ w, h_not_v_in_G' w h ⟩}
       let S := {u | G.Adj w u ∧ u < w}
       have h_feq : ∀ x' : {x // x ∈ G'.verts}, x' = ⟨ f x', h_f_in_G' x'⟩ := fun x' ↦ SetCoe.ext rfl
       have h_inc : ∀ u' : {x // x ∈ G'.verts}, u' ∈ S' → f u' ∈ S := by
@@ -383,7 +377,8 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
         exact ⟨ h_u_adj_w, h_u_lt_w ⟩
       have h_subset_range : S ⊆ Set.range f := by
         intro u ⟨ _, h_u_lt_w ⟩
-        refine Set.mem_range.mpr ⟨ ⟨ u, h_u_in_G' u h_u_lt_w ⟩ , (congrFun rfl ∘ f) w' ⟩
+        refine Set.mem_range.mpr ⟨ ⟨ u, h_u_in_G' u h_u_lt_w ⟩ ,
+          (congrFun rfl ∘ f) ⟨ w, h_not_v_in_G' w h ⟩ ⟩
       have h_f_inv_S_is_S' : f⁻¹' S = S' := by
         refine Set.ext ?_
         intro x'
