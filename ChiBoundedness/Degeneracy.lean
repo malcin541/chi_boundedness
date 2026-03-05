@@ -66,73 +66,56 @@ theorem isDegenerate_nondecreasing (G : SimpleGraph V) (d₁ d₂ : ℕ) :
   obtain ⟨ v, hv ⟩ := h₁ H h_H_neq_bot
   exact ⟨ v, ⟨ hv.left, le_trans hv.right h_ineq ⟩ ⟩
 
-theorem degeneracy_subgraph_monotone (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
+theorem isDegenerate_subgraph' (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
+    IsDegenerate' G d → IsDegenerate' H.coe d := by
+  intro h_G_deg A h_A_nonempty
+  obtain ⟨ v_in_G, ⟨ h_v_where, h_v_nei_card⟩ ⟩ :=
+    h_G_deg (A : Set V) (Set.Nonempty.image Subtype.val h_A_nonempty)
+  let v := H.vert v_in_G (Set.mem_of_subset_of_mem (Subtype.coe_image_subset H.verts A) h_v_where)
+  refine ⟨ v, Set.mem_of_mem_image_val h_v_where, ?_ ⟩
+  rw [← Set.ncard_image_of_injective _ Subtype.val_injective]
+  refine le_trans (Set.ncard_le_ncard ?_) h_v_nei_card
+  intro u ⟨ u', ⟨ h_u'_where, h_u'_adj ⟩, h_u'_eq ⟩
+  exact ⟨ h_u'_eq ▸ Set.mem_image_of_mem Subtype.val h_u'_where,
+    SimpleGraph.Subgraph.Adj.adj_sub (h_u'_eq ▸ (H.coe_adj u' v) ▸ h_u'_adj) ⟩
+
+theorem isDegenerate_subgraph (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
+    IsDegenerate G d → IsDegenerate H.coe d := fun h =>
+      (isDegenerate_iff_isDegenerate' H.coe d).mpr
+        ((isDegenerate_subgraph' G H d)
+          ((isDegenerate_iff_isDegenerate' G d).mp h))
+
+/- This one is the same as isDegenerate_subgraph', but it is proven directly from the definition
+   as an exercise. Quite an ugly type-casting exercise. -/
+theorem isDegenerate_subgraph_exercise (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
     IsDegenerate G d → IsDegenerate H.coe d := by
   intro h K h_K_neq_bot
   let K' := H.coeSubgraph K
   have h_verts_equal : (K.verts : Set V) = K'.verts := by trivial
   have h_verts_equal' : K.verts = Subtype.val⁻¹' K'.verts := by
     rw [← h_verts_equal, Set.preimage_image_eq _ Subtype.val_injective]
-  have h_K'_neq_bot : K' ≠ ⊥ := by
-    apply K'.ne_bot_iff_nonempty_verts.mpr
-    apply K.ne_bot_iff_nonempty_verts.mp at h_K_neq_bot
-    exact Set.Nonempty.image _ h_K_neq_bot
+  have h_K'_neq_bot : K' ≠ ⊥ :=
+    K'.ne_bot_iff_nonempty_verts.mpr (Set.Nonempty.image _
+      (K.ne_bot_iff_nonempty_verts.mp h_K_neq_bot))
   obtain ⟨ v, ⟨ hv_where, hv_deg ⟩ ⟩ := h K' h_K'_neq_bot
   have h_K_subset_H : (K.verts : Set V) ⊆ H.verts := by simp
   have h_v_in_Hverts : v ∈ H.verts := h_K_subset_H hv_where
   let v' := H.vert v h_v_in_Hverts
-  use v'
-  constructor
-  · rw [h_verts_equal']
-    exact hv_where
-  · suffices h_deg_equal : K.degree v' ≤ K'.degree v by
-      exact le_trans h_deg_equal hv_deg
-    suffices h_nei_subset : (K.neighborSet v' : Set V) ⊆ K'.neighborSet v by
-      unfold SimpleGraph.Subgraph.degree
-      simp only [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card',
-                 ← (Set.ncard_image_of_injective _ Subtype.val_injective),
-                 Set.ncard_le_ncard h_nei_subset]
-    intro x hx
-    unfold SimpleGraph.Subgraph.neighborSet
-    unfold SimpleGraph.Subgraph.neighborSet at hx
-    obtain ⟨ ⟨ y, hy_in_Hverts ⟩ , ⟨ hy₁, hy₂ ⟩ ⟩ := hx
-    simp only [Set.mem_setOf_eq]
-    apply (H.coeSubgraph_adj K v x).mpr
-    use h_v_in_Hverts
-    simp only at hy₂
-    rw [hy₂] at hy_in_Hverts
-    use hy_in_Hverts
-    simp only [Set.mem_setOf_eq, hy₂] at hy₁
-    exact hy₁
-
-theorem degeneracy_subgraph_monotone' (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
-    IsDegenerate' G d → IsDegenerate' H.coe d := by
-  intro h_G_deg A h_A_nonempty
-  let A_in_G := (A : Set V)
-  obtain ⟨ v_in_G, ⟨ h_v_where, h_v_nei_card⟩ ⟩ :=
-    h_G_deg A_in_G (Set.Nonempty.image Subtype.val h_A_nonempty)
-  have h_A_subset_H : A_in_G ⊆ H.verts := by exact Subtype.coe_image_subset H.verts A
-  have h_v_in_H : v_in_G ∈ H.verts := by exact Set.mem_of_subset_of_mem h_A_subset_H h_v_where
-  let v := H.vert v_in_G h_v_in_H
-  have h_v_in_A : v ∈ A := by exact Set.mem_of_mem_image_val h_v_where
-  use v
-  constructor
-  · exact h_v_in_A
-  · suffices h : Subtype.val '' {u | u ∈ A ∧ H.coe.Adj u v} ⊆ {u | u ∈ A_in_G ∧ G.Adj u v_in_G} by
-      rw [← Set.ncard_image_of_injective _ Subtype.val_injective]
-      exact le_trans (Set.ncard_le_ncard h) h_v_nei_card
-    intro u ⟨ u', ⟨ h_u'_where, h_u'_adj ⟩, h_u'_eq ⟩
-    constructor
-    · rw [← h_u'_eq]
-      exact Set.mem_image_of_mem Subtype.val h_u'_where
-    · rw [H.coe_adj u' v, h_u'_eq] at h_u'_adj
-      exact SimpleGraph.Subgraph.Adj.adj_sub h_u'_adj
-
-theorem degeneracy_subgraph_monotone'' (G : SimpleGraph V) (H : G.Subgraph) (d : ℕ) :
-    IsDegenerate G d → IsDegenerate H.coe d := fun h =>
-      (isDegenerate_iff_isDegenerate' H.coe d).mpr
-        ((degeneracy_subgraph_monotone' G H d)
-          ((isDegenerate_iff_isDegenerate' G d).mp h))
+  refine ⟨ v', h_verts_equal' ▸  hv_where, le_trans ?_ hv_deg ⟩
+  suffices h_nei_subset : (K.neighborSet v' : Set V) ⊆ K'.neighborSet v by
+    unfold SimpleGraph.Subgraph.degree
+    simp only [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card',
+               ← (Set.ncard_image_of_injective _ Subtype.val_injective),
+               Set.ncard_le_ncard h_nei_subset]
+  intro x hx
+  unfold SimpleGraph.Subgraph.neighborSet
+  unfold SimpleGraph.Subgraph.neighborSet at hx
+  obtain ⟨ ⟨ y, h_y_in_Hverts ⟩ , ⟨ h_y_in, h_y_eq_x ⟩ ⟩ := hx
+  apply (H.coeSubgraph_adj K v x).mpr
+  simp only at h_y_eq_x
+  rw [h_y_eq_x] at h_y_in_Hverts
+  simp only [h_y_eq_x] at h_y_in
+  exact ⟨ h_v_in_Hverts, h_y_in_Hverts, h_y_in ⟩
 
 theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
     IsDegenerate G d -> G.Colorable (d+1) := by
@@ -166,7 +149,7 @@ theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
       rw [h_G'_verts]
       exact Set.mem_diff_of_mem trivial hx
     have h_G'_deg : IsDegenerate G'.coe d := by
-      apply degeneracy_subgraph_monotone
+      apply isDegenerate_subgraph
       exact h_G_deg
     have h_G'_colorable : G'.coe.Colorable (d + 1) := ih G'.coe h_G'_card h_G'_deg
     obtain ⟨ f' ⟩ := h_G'_colorable
@@ -280,7 +263,7 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
       rw [h_G'_verts]
       exact Set.mem_diff_of_mem trivial hx
     have h_G'_deg : IsDegenerate G'.coe d := by
-      apply degeneracy_subgraph_monotone
+      apply isDegenerate_subgraph
       exact h_G_deg
     obtain ⟨ o', ho' ⟩ := ih G'.coe h_G'_card h_G'_deg
     let o : LinearOrder V := {
