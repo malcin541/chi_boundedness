@@ -5,48 +5,51 @@ set_option linter.unusedFintypeInType false
 
 section Degeneracy
 
-open Classical
+variable {V : Type*} [Fintype V]
 
-variable {V : Type*} [Fintype V] {G : SimpleGraph V}
-
-def IsDegenerate (G : SimpleGraph V) (d : ℕ) : Prop :=
-  ∀ (H : G.Subgraph), H ≠ ⊥ → ∃ v ∈ H.verts, (H.degree v) ≤ d
+def IsDegenerate (G : SimpleGraph V) (d : ℕ) : Prop := by classical
+  exact ∀ (H : G.Subgraph), H ≠ ⊥ → ∃ v ∈ H.verts, (H.degree v) ≤ d
 
 def IsDegenerate' (G : SimpleGraph V) (d : ℕ) : Prop :=
   ∀ (A : Set V), A.Nonempty → ∃ v ∈ A, Set.ncard {u ∈ A | G.Adj u v} ≤ d
+
+lemma isDegenerate_boundedDegree' (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
+  (∀ v, G.degree v ≤ d) → IsDegenerate G d := by
+  classical
+  intro h_G_maxdeg H h_H_not_bot
+  obtain ⟨ v, hv ⟩ := H.ne_bot_iff_nonempty_verts.mp h_H_not_bot
+  exact ⟨ v, hv, le_trans (H.degree_le v) (h_G_maxdeg v) ⟩
+
+lemma isDegenerate_boundedDegree (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
+  G.maxDegree ≤ d → IsDegenerate G d :=
+  fun h => isDegenerate_boundedDegree' G d  (fun v => le_trans (G.degree_le_maxDegree v) h)
+
+theorem isDegenerate_emptyGraph (d : ℕ) : IsDegenerate (SimpleGraph.emptyGraph V) d := by
+  classical
+  apply isDegenerate_boundedDegree'
+  intro v
+  simp [SimpleGraph.bot_degree v]
+
+open Classical
 
 theorem degeneracy_def_equivalent (G : SimpleGraph V) (d : ℕ) :
     IsDegenerate G d ↔ IsDegenerate' G d := by
   constructor
   · intro h A hA
     let H := (⊤ : G.Subgraph).induce A
-    have h_Hverts_eq_A : H.verts = A := by exact (H.induce_verts A)
-    have hH_notempty : H ≠ ⊥ := by
-      apply H.ne_bot_iff_nonempty_verts.mpr
-      rw [h_Hverts_eq_A]
-      exact hA
-    have ⟨ v, hv ⟩  := h H hH_notempty
-    use v
-    constructor
-    · rw [← h_Hverts_eq_A]
-      exact hv.left
-    · let h₁ := hv.right
-      unfold SimpleGraph.Subgraph.degree at h₁
-      have h₂ : H.neighborSet v = { u ∈ A | G.Adj u v} := by
-        unfold SimpleGraph.Subgraph.neighborSet
-        apply Set.ext_iff.mpr
-        intro x
-        simp only [Set.mem_setOf_eq]
-        constructor
-        · intro hx
-          exact ⟨ H.edge_vert hx.symm, H.adj_sub hx.symm ⟩
-        · intro hx
-          rw [(⊤ : G.Subgraph).induce_adj]
-          exact ⟨ hv.left, ⟨ hx.left, hx.right.symm ⟩ ⟩
-      rw [← Set.toFinset_card] at h₁
-      simp [h₂] at h₁
-      rw [Set.ncard_eq_toFinset_card']
-      simp [h₁]
+    have ⟨ v, ⟨ h_v_in_A, h_v_deg ⟩ ⟩  := h H (H.ne_bot_iff_nonempty_verts.mpr hA)
+    refine ⟨ v, h_v_in_A, ?_ ⟩
+    have h₂ : H.neighborSet v = { u ∈ A | G.Adj u v} := by
+      apply Set.ext_iff.mpr
+      intro _
+      simp only [Set.mem_setOf_eq]
+      exact ⟨ fun hx => ⟨ H.edge_vert hx.symm, H.adj_sub hx.symm ⟩,
+              fun hx => ⟨ h_v_in_A, ⟨ hx.left, hx.right.symm ⟩ ⟩ ⟩
+    rw [Set.ncard_eq_toFinset_card']
+    unfold SimpleGraph.Subgraph.degree at h_v_deg
+    rw [← Set.toFinset_card] at h_v_deg
+    simp [h₂] at h_v_deg
+    simp [h_v_deg]
   · intro h H hH
     let A := H.verts
     have ⟨ v, hv ⟩ := h A (H.ne_bot_iff_nonempty_verts.mp hH)
@@ -63,24 +66,6 @@ theorem degeneracy_def_equivalent (G : SimpleGraph V) (d : ℕ) :
       constructor
       · exact H.edge_vert hx'.symm
       · exact H.adj_sub hx'.symm
-
-theorem empty_zero_degenerate (G : SimpleGraph V) (d : ℕ) : G = ⊥ → IsDegenerate G d := by
-  intro h H h_H_not_bot
-  obtain ⟨ v, hv ⟩ := H.ne_bot_iff_nonempty_verts.mp h_H_not_bot
-  use v
-  constructor
-  · exact hv
-  · suffices h₁ : (H.neighborSet v) = ∅ by
-      unfold SimpleGraph.Subgraph.degree
-      rw [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card']
-      apply (H.neighborSet v).ncard_eq_zero.mpr at h₁
-      simp [h₁]
-    unfold SimpleGraph.Subgraph.neighborSet
-    ext x
-    simp only [Set.mem_setOf_eq, Set.mem_empty_iff_false, iff_false]
-    suffices h₂ : ¬G.Adj v x by
-      exact mt H.adj_sub h₂
-    simp [h]
 
 theorem mon_degeneracy (G : SimpleGraph V) (d₁ d₂ : ℕ) :
     IsDegenerate G d₁ → d₁ ≤ d₂ → IsDegenerate G d₂ := by
