@@ -1,4 +1,5 @@
 import Mathlib
+import ChiBoundedness.Tools
 
 set_option linter.style.openClassical false
 set_option linter.unusedFintypeInType false
@@ -7,29 +8,31 @@ section Degeneracy
 
 variable {V : Type*} [Fintype V]
 
-def IsDegenerate (G : SimpleGraph V) (d : ℕ) : Prop := by classical
-  exact ∀ (H : G.Subgraph), H ≠ ⊥ → ∃ v ∈ H.verts, (H.degree v) ≤ d
+open Classical
 
-def IsDegenerate' (G : SimpleGraph V) (d : ℕ) : Prop :=
-  ∀ (A : Set V), A.Nonempty → ∃ v ∈ A, Set.ncard {u ∈ A | G.Adj u v} ≤ d
+/- Main definition of degeneracy -/
+def IsDegenerate (G : SimpleGraph V) (d : ℕ) : Prop :=
+  ∀ (H : G.Subgraph), H ≠ ⊥ → ∃ v ∈ H.verts, (H.degree v) ≤ d
 
-lemma isDegenerate_boundedDegree' (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
+/- Bounded degree graphs are degenerate -/
+lemma isDegenerate_boundedDegree' (G : SimpleGraph V) (d : ℕ) :
   (∀ v, G.degree v ≤ d) → IsDegenerate G d := by
-  classical
   intro h_G_maxdeg H h_H_not_bot
   obtain ⟨ v, hv ⟩ := H.ne_bot_iff_nonempty_verts.mp h_H_not_bot
   exact ⟨ v, hv, le_trans (H.degree_le v) (h_G_maxdeg v) ⟩
 
-lemma isDegenerate_boundedDegree (G : SimpleGraph V) [DecidableRel G.Adj] (d : ℕ) :
+lemma isDegenerate_boundedDegree (G : SimpleGraph V) (d : ℕ) :
   G.maxDegree ≤ d → IsDegenerate G d :=
   fun h => isDegenerate_boundedDegree' G d  (fun v => le_trans (G.degree_le_maxDegree v) h)
 
 theorem isDegenerate_emptyGraph (d : ℕ) : IsDegenerate (SimpleGraph.emptyGraph V) d := by
   apply isDegenerate_boundedDegree'
   intro v
-  simp [SimpleGraph.bot_degree v]
+  simp
 
-open Classical
+/- Equivalent degeneracy definition -/
+def IsDegenerate' (G : SimpleGraph V) (d : ℕ) : Prop :=
+  ∀ (A : Set V), A.Nonempty → ∃ v ∈ A, Set.ncard {u ∈ A | G.Adj u v} ≤ d
 
 theorem degeneracy_def_equivalent (G : SimpleGraph V) (d : ℕ) :
     IsDegenerate G d ↔ IsDegenerate' G d := by
