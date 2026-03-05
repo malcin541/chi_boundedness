@@ -117,100 +117,76 @@ theorem isDegenerate_subgraph_exercise (G : SimpleGraph V) (H : G.Subgraph) (d :
   simp only [h_y_eq_x] at h_y_in
   exact ⟨ h_v_in_Hverts, h_y_in_Hverts, h_y_in ⟩
 
-theorem degeneracy_to_coloring (G : SimpleGraph V) (d : ℕ) :
+/- Helper lemmata for induction on the number of vertices -/
+lemma card_top_of_fincard_V {n : ℕ} (hcard : Fintype.card V = n) (G : SimpleGraph V) :
+  (⊤ : G.Subgraph).verts.ncard = n := by
+    rw [Set.ncard_eq_toFinset_card', Set.toFinset_card,
+          SimpleGraph.Subgraph.verts_top, Fintype.card_setUniv]
+    exact hcard
+
+lemma card_del_one_vertex {n : ℕ} (hcard : Fintype.card V = n + 1) (G : SimpleGraph V) (v : V) :
+  Fintype.card ((⊤ : G.Subgraph).deleteVerts {v}).verts = n := by
+  rw [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card',
+      SimpleGraph.Subgraph.deleteVerts_verts, Set.ncard_diff_singleton_of_mem (by trivial),
+      card_top_of_fincard_V hcard]
+  rfl
+
+theorem colorable_of_isDegenerate (G : SimpleGraph V) (d : ℕ) :
     IsDegenerate G d -> G.Colorable (d+1) := by
   induction hcard : Fintype.card V generalizing V with
   | zero =>
-    intro _
-    exact @SimpleGraph.Colorable.of_isEmpty V G (Fintype.card_eq_zero_iff.mp hcard) (d + 1)
+    exact fun _ => @SimpleGraph.Colorable.of_isEmpty V G (Fintype.card_eq_zero_iff.mp hcard) (d + 1)
   | succ n ih =>
     intro h_G_deg
-    let G_as_subgraph := (⊤ : G.Subgraph)
-    have h_G_card : G_as_subgraph.verts.ncard = n + 1 := by
-      rw [Set.ncard_eq_toFinset_card', Set.toFinset_card,
-          SimpleGraph.Subgraph.verts_top, Fintype.card_setUniv]
-      exact hcard
-    have h_G_nonempty : G_as_subgraph ≠ ⊥ := by
-      suffices h_V_nonempty : Nonempty V by
-        refine (SimpleGraph.Subgraph.ne_bot_iff_nonempty_verts G_as_subgraph).mpr ?_
-        exact Set.univ_nonempty
-      apply Fintype.card_pos_iff.mp
-      simp only [hcard, Nat.succ_pos n]
-    obtain ⟨ v, hv ⟩ := h_G_deg G_as_subgraph h_G_nonempty
-    let G' := G_as_subgraph.deleteVerts {v}
-    have h_G'_verts : G'.verts = G_as_subgraph.verts \ {v} := SimpleGraph.Subgraph.deleteVerts_verts
-    have h_G'_card : Fintype.card G'.verts = n := by
-      suffices h₁ : G'.verts.ncard = n by
-        rw [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card', h₁]
-      rw [SimpleGraph.Subgraph.deleteVerts_verts, Set.ncard_diff_singleton_of_mem hv.left, h_G_card]
-      rfl
-    have h_not_v_in_G' : ∀ x : V, x ≠ v → x ∈ G'.verts := by
-      intro x hx
-      rw [h_G'_verts]
-      exact Set.mem_diff_of_mem trivial hx
-    have h_G'_deg : IsDegenerate G'.coe d := by
-      apply isDegenerate_subgraph
-      exact h_G_deg
-    have h_G'_colorable : G'.coe.Colorable (d + 1) := ih G'.coe h_G'_card h_G'_deg
-    obtain ⟨ f' ⟩ := h_G'_colorable
-    let nv := {u | G.Adj u v ∧ u ∈ G'.verts}
-    have h_nv_card : nv.ncard ≤ d := by
-      suffices h_subset : nv ⊆ G.neighborSet v by
-        rw [← SimpleGraph.Subgraph.neighborSet_top] at h_subset
-        refine le_trans (Set.ncard_le_ncard h_subset) ?_
-        rw [Set.ncard_eq_toFinset_card', Set.toFinset_card]
-        exact hv.right
-      intro u ⟨ h_u_adj, _ ⟩
-      exact (G.adj_comm u v).mp h_u_adj
+    /- Take v from degeneracy assumption, remove it, and apply induction -/
+    obtain ⟨ v, ⟨ _, h_deg_v ⟩  ⟩ := h_G_deg (⊤ : G.Subgraph)
+      ((⊤ : G.Subgraph).ne_bot_iff_nonempty_verts.mpr ((⊤ : G.Subgraph).verts.ncard_pos.mp
+        ((card_top_of_fincard_V hcard G) ▸ (Nat.succ_pos n))))
+    let G' := (⊤ : G.Subgraph).deleteVerts {v}
+    obtain ⟨ f' ⟩ :=
+      ih G'.coe (card_del_one_vertex hcard G v) (isDegenerate_subgraph G G' d h_G_deg)
+    /- Helper lemma -/
+    have h_not_v_in_G' : ∀ x, x ≠ v → x ∈ G'.verts :=
+      fun _ hx => Set.mem_diff_of_mem (by trivial) hx
+    /- Find a color for v: one not used in its neighbors -/
+    let nv := G.neighborSet v
+    have h_nv_card : (G.neighborSet v).ncard ≤ d := by
+      rw [← SimpleGraph.Subgraph.neighborSet_top, Set.ncard_eq_toFinset_card', Set.toFinset_card]
+      exact h_deg_v
     let used_cols := f' '' (Subtype.val⁻¹' nv)
-    have h_used_cols_card : used_cols.ncard ≤ d := by
+    have h_used_cols_card : used_cols.ncard < (Set.univ : Set (Fin (d+1))).ncard := by
       calc
       _ ≤ (Subtype.val⁻¹' nv).ncard := Set.ncard_image_le
-      _ = (Subtype.val⁻¹' nv).encard.toNat := by rfl
-      _ ≤ nv.encard.toNat := by
+      _ ≤ nv.ncard := by
         refine ENat.toNat_le_toNat (Set.encard_preimage_val_le_encard_right G'.verts nv) ?_
-        simp only [ne_eq, Set.encard_eq_top_iff, Set.not_infinite]
-        exact nv.toFinite
-      _ = nv.ncard := by rfl
+        simp only [ne_eq, Set.encard_eq_top_iff, Set.not_infinite, nv.toFinite]
       _ ≤ d := h_nv_card
-    have h_sizes_lt : used_cols.ncard < (Set.univ : Set (Fin (d+1))).ncard := by
-        simp [h_used_cols_card]
-    obtain ⟨ a, ⟨ _, h_a_unused ⟩ ⟩ := Set.exists_mem_notMem_of_ncard_lt_ncard h_sizes_lt
-    let f : V → Fin (d+1) := fun u => if h : u = v then a else
-      have h_u_in_G' : u ∈ G'.verts := by
-        rw [h_G'_verts, SimpleGraph.Subgraph.verts_top]
-        simp [Set.mem_diff, Set.mem_singleton_iff, h]
-      f' ⟨ u, h_u_in_G' ⟩
-    have h_f_f'_equal: ∀ x : V, ∀ hx: x ∈ G'.verts, f' ⟨ x, hx ⟩  = f x := by grind
-    have h_fv_eq_a : f v = a := by grind
+      _ < (Set.univ : Set (Fin (d+1))).ncard := by simp
+    obtain ⟨ a, ⟨ _, h_a_unused ⟩ ⟩ := Set.exists_mem_notMem_of_ncard_lt_ncard h_used_cols_card
+    /- Define a prospective coloring of G and prove its properties -/
+    let f : V → Fin (d+1) := fun u => if h : u = v then a else f' ⟨ u, h_not_v_in_G' u h ⟩
+    refine Fintype.card_fin (d + 1) ▸ (SimpleGraph.Coloring.mk f ?_).colorable
+    /- Helper lemmata -/
+    have h_f_f'_equal: ∀ x : V, ∀ hx: x ∈ G'.verts, f' ⟨ x, hx ⟩ = f x := fun _ hx =>
+      Eq.symm (dif_neg (Set.mem_diff_singleton.mp
+        (SimpleGraph.Subgraph.deleteVerts_verts ▸ hx)).right)
+    have h_fv_eq_a : f v = a := by exact (Ne.dite_eq_left_iff fun h a ↦ h rfl).mpr rfl
+    /- Prove that coloring is proper at v -/
     have h_f_v_valid : ∀ x : V, G.Adj v x → f v ≠ f x := by
       intro x h_adj
-      have h_x_ne_v : x ≠ v := G.ne_of_adj h_adj.symm
-      have h_x_in_G' : x ∈ G'.verts := h_not_v_in_G' x h_x_ne_v
-      rw [h_fv_eq_a, ← h_f_f'_equal x h_x_in_G']
-      suffices x ∈ nv by grind
-      exact ⟨ h_adj.symm, h_x_in_G' ⟩
-    have h_f_valid : ∀ {x y : V}, G.Adj x y → f x ≠ f y := by
-      intro x y h_adj
-      by_cases h₁ : x = v
-      · rw [h₁]
-        rw [h₁] at h_adj
-        exact h_f_v_valid y h_adj
-      · by_cases h₂ : y = v
-        · rw [h₂]
-          rw [h₂] at h_adj
-          exact (h_f_v_valid x h_adj.symm).symm
-        · have h_x_in_G' : x ∈ G'.verts := h_not_v_in_G' x h₁
-          have h_y_in_G' : y ∈ G'.verts := h_not_v_in_G' y h₂
-          rw [← h_f_f'_equal x h_x_in_G', ← h_f_f'_equal y h_y_in_G']
-          suffices h_xy_adj_in_G' : G'.coe.Adj ⟨ x, h_x_in_G' ⟩  ⟨ y, h_y_in_G' ⟩  by
-            exact f'.valid h_xy_adj_in_G'
-          simp only [SimpleGraph.Subgraph.coe_adj]
-          exact SimpleGraph.Subgraph.deleteVerts_adj.mpr ⟨ by trivial, h₁, by trivial, h₂, h_adj ⟩
-    have f_as_col := (SimpleGraph.Coloring.mk f h_f_valid).colorable
-    rw [Fintype.card_fin] at f_as_col
-    exact f_as_col
-
+      have h_x_in_G' : x ∈ G'.verts := h_not_v_in_G' x (G.ne_of_adj h_adj.symm)
+      have h_x_in_nv : x ∈ nv := h_adj
+      grind
+    /- Final proof that f is proper -/
+    intro x y h_adj
+    by_cases h₁ : x = v
+    · exact h₁ ▸ h_f_v_valid y (h₁ ▸ h_adj)
+    by_cases h₂ : y = v
+    · exact h₂ ▸ (h_f_v_valid x (h₂ ▸ h_adj.symm)).symm
+    rw [← h_f_f'_equal x (h_not_v_in_G' x h₁), ← h_f_f'_equal y (h_not_v_in_G' y h₂)]
+    refine f'.valid ?_
+    simp only [SimpleGraph.Subgraph.coe_adj]
+    exact SimpleGraph.Subgraph.deleteVerts_adj.mpr ⟨ by trivial, h₁, by trivial, h₂, h_adj ⟩
 
 /- Degeneracy orderings -/
 def IsDegenerateOrder (G : SimpleGraph V) (o : LinearOrder V) (d : ℕ) : Prop :=
