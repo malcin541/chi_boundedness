@@ -25,7 +25,6 @@ lemma isDegenerate_boundedDegree (G : SimpleGraph V) [DecidableRel G.Adj] (d : â
   fun h => isDegenerate_boundedDegree' G d  (fun v => le_trans (G.degree_le_maxDegree v) h)
 
 theorem isDegenerate_emptyGraph (d : â„•) : IsDegenerate (SimpleGraph.emptyGraph V) d := by
-  classical
   apply isDegenerate_boundedDegree'
   intro v
   simp [SimpleGraph.bot_degree v]
