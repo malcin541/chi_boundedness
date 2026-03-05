@@ -131,6 +131,18 @@ lemma card_del_one_vertex {n : ℕ} (hcard : Fintype.card V = n + 1) (G : Simple
       card_top_of_fincard_V hcard]
   rfl
 
+lemma top_nonempty_of_card_pos {n : ℕ} (hcard : Fintype.card V = n + 1) (G : SimpleGraph V) :
+  (⊤ : G.Subgraph) ≠ ⊥ :=
+  ((⊤ : G.Subgraph).ne_bot_iff_nonempty_verts.mpr ((⊤ : G.Subgraph).verts.ncard_pos.mp
+        ((card_top_of_fincard_V hcard G) ▸ (Nat.succ_pos n))))
+
+lemma low_degree_v_of_isDegenerate {n d : ℕ} (hcard : Fintype.card V = n + 1) (G : SimpleGraph V)
+  (h : IsDegenerate G d) : ∃ v : V, (G.neighborSet v).ncard ≤ d := by
+  obtain ⟨ v, ⟨ _, h_deg_v ⟩  ⟩ := h (⊤ : G.Subgraph) (top_nonempty_of_card_pos hcard G)
+  refine ⟨ v, ?_ ⟩
+  rw [← SimpleGraph.Subgraph.neighborSet_top, Set.ncard_eq_toFinset_card', Set.toFinset_card]
+  exact h_deg_v
+
 theorem colorable_of_isDegenerate (G : SimpleGraph V) (d : ℕ) :
     IsDegenerate G d -> G.Colorable (d+1) := by
   induction hcard : Fintype.card V generalizing V with
@@ -139,9 +151,8 @@ theorem colorable_of_isDegenerate (G : SimpleGraph V) (d : ℕ) :
   | succ n ih =>
     intro h_G_deg
     /- Take v from degeneracy assumption, remove it, and apply induction -/
-    obtain ⟨ v, ⟨ _, h_deg_v ⟩  ⟩ := h_G_deg (⊤ : G.Subgraph)
-      ((⊤ : G.Subgraph).ne_bot_iff_nonempty_verts.mpr ((⊤ : G.Subgraph).verts.ncard_pos.mp
-        ((card_top_of_fincard_V hcard G) ▸ (Nat.succ_pos n))))
+    -- obtain ⟨ v, ⟨ _, h_deg_v ⟩  ⟩ := h_G_deg (⊤ : G.Subgraph) (top_nonempty_of_card_pos hcard G)
+    obtain ⟨ v, h_deg_v ⟩ := low_degree_v_of_isDegenerate hcard G h_G_deg
     let G' := (⊤ : G.Subgraph).deleteVerts {v}
     obtain ⟨ f' ⟩ :=
       ih G'.coe (card_del_one_vertex hcard G v) (isDegenerate_subgraph G G' d h_G_deg)
@@ -150,9 +161,6 @@ theorem colorable_of_isDegenerate (G : SimpleGraph V) (d : ℕ) :
       fun _ hx => Set.mem_diff_of_mem (by trivial) hx
     /- Find a color for v: one not used in its neighbors -/
     let nv := G.neighborSet v
-    have h_nv_card : (G.neighborSet v).ncard ≤ d := by
-      rw [← SimpleGraph.Subgraph.neighborSet_top, Set.ncard_eq_toFinset_card', Set.toFinset_card]
-      exact h_deg_v
     let used_cols := f' '' (Subtype.val⁻¹' nv)
     have h_used_cols_card : used_cols.ncard < (Set.univ : Set (Fin (d+1))).ncard := by
       calc
@@ -160,7 +168,7 @@ theorem colorable_of_isDegenerate (G : SimpleGraph V) (d : ℕ) :
       _ ≤ nv.ncard := by
         refine ENat.toNat_le_toNat (Set.encard_preimage_val_le_encard_right G'.verts nv) ?_
         simp only [ne_eq, Set.encard_eq_top_iff, Set.not_infinite, nv.toFinite]
-      _ ≤ d := h_nv_card
+      _ ≤ d := h_deg_v
       _ < (Set.univ : Set (Fin (d+1))).ncard := by simp
     obtain ⟨ a, ⟨ _, h_a_unused ⟩ ⟩ := Set.exists_mem_notMem_of_ncard_lt_ncard h_used_cols_card
     /- Define a prospective coloring of G and prove its properties -/
@@ -192,56 +200,30 @@ theorem colorable_of_isDegenerate (G : SimpleGraph V) (d : ℕ) :
 def IsDegenerateOrder (G : SimpleGraph V) (o : LinearOrder V) (d : ℕ) : Prop :=
   ∀ v : V, {u | G.Adj v u ∧ o.lt u v}.ncard ≤ d
 
-theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
+theorem isDegenerate_iff_isDegenerateOrder (G : SimpleGraph V) (d : ℕ) :
     IsDegenerate G d ↔ ∃ (o : LinearOrder V), IsDegenerateOrder G o d := by
   constructor
   · induction hcard : Fintype.card V generalizing V with
   | zero =>
     intro _
     letI : IsEmpty V := Fintype.card_eq_zero_iff.mp hcard
-    use { le := fun x _ => (IsEmpty.false x).elim
-          le_refl  := fun x => (IsEmpty.false x).elim
-          le_trans := fun x _ _ _ _ => (IsEmpty.false x).elim
-          le_antisymm := fun x _ _ _ => (IsEmpty.false x).elim
-          le_total := fun x _ => (IsEmpty.false x).elim
-          toDecidableLE := fun x _ => (IsEmpty.false x).elim}
-    intro v
-    exact (IsEmpty.false v).elim
+    exact ⟨ { le := fun x _ => (IsEmpty.false x).elim
+              le_refl  := fun x => (IsEmpty.false x).elim
+              le_trans := fun x _ _ _ _ => (IsEmpty.false x).elim
+              le_antisymm := fun x _ _ _ => (IsEmpty.false x).elim
+              le_total := fun x _ => (IsEmpty.false x).elim
+              toDecidableLE := fun x _ => (IsEmpty.false x).elim},
+          fun v => (IsEmpty.false v).elim ⟩
   | succ n ih =>
     intro h_G_deg
-    let h_G_deg' := (isDegenerate_iff_isDegenerate' G d).mp h_G_deg
-    have h_V_nonempty : Nonempty V := by
-      apply Fintype.card_pos_iff.mp
-      simp only [hcard, Nat.succ_pos n]
-    obtain ⟨ v, ⟨ _, hv ⟩ ⟩ := h_G_deg' Set.univ (Set.nonempty_iff_univ_nonempty.mp h_V_nonempty)
-    let G_as_subgraph := (⊤ : G.Subgraph)
-    have h_G_card : G_as_subgraph.verts.ncard = n + 1 := by
-      rw [Set.ncard_eq_toFinset_card', Set.toFinset_card,
-          SimpleGraph.Subgraph.verts_top, Fintype.card_setUniv]
-      exact hcard
-    have h_G_nonempty : G_as_subgraph ≠ ⊥ := by
-      refine (SimpleGraph.Subgraph.ne_bot_iff_nonempty_verts G_as_subgraph).mpr ?_
-      exact Set.univ_nonempty
-    let G' := G_as_subgraph.deleteVerts {v}
-    have h_G'_verts : G'.verts = G_as_subgraph.verts \ {v} := SimpleGraph.Subgraph.deleteVerts_verts
-    have h_G'_card : Fintype.card G'.verts = n := by
-      suffices h₁ : G'.verts.ncard = n by
-        rw [← Set.toFinset_card, ← Set.ncard_eq_toFinset_card', h₁]
-      rw [SimpleGraph.Subgraph.deleteVerts_verts,
-        Set.ncard_diff_singleton_of_mem
-          (by
-            rw [SimpleGraph.Subgraph.verts_top]
-            trivial),
-          h_G_card]
-      rfl
-    have h_not_v_in_G' : ∀ x : V, x ≠ v → x ∈ G'.verts := by
-      intro x hx
-      rw [h_G'_verts]
-      exact Set.mem_diff_of_mem trivial hx
-    have h_G'_deg : IsDegenerate G'.coe d := by
-      apply isDegenerate_subgraph
-      exact h_G_deg
-    obtain ⟨ o', ho' ⟩ := ih G'.coe h_G'_card h_G'_deg
+    /- Take low-degree vertex v and delete it, obtaining G' -/
+    obtain ⟨ v, hv ⟩ := low_degree_v_of_isDegenerate hcard G h_G_deg
+    let G' := (⊤ : G.Subgraph).deleteVerts {v}
+    have h_not_v_in_G' : ∀ x : V, x ≠ v → x ∈ G'.verts :=
+      fun _ hx => Set.mem_diff_of_mem trivial hx
+    /- Extract linear order from induction and add v as the maximum element -/
+    obtain ⟨ o', ho' ⟩ := ih G'.coe (card_del_one_vertex hcard G v)
+      (isDegenerate_subgraph G G' d h_G_deg)
     let o : LinearOrder V := {
       le x y :=
         if hy : y = v then True
@@ -261,10 +243,10 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
     intro w
     by_cases h : w = v
     · rw [h]
-      suffices h_subset : {u | G.Adj v u ∧ u < v } ⊆ {u | u ∈ Set.univ ∧ G.Adj u v} by
-        exact le_trans (Set.ncard_le_ncard h_subset) hv
+      refine le_trans (Set.ncard_le_ncard ?_) hv
       intro u ⟨ h_u_adj_v , h_u_lt_v ⟩
-      simp [h_u_adj_v.symm]
+      exact (SimpleGraph.mem_neighborSet G v u).mpr h_u_adj_v
+      /- The case w ≠ v, so everything is in G'. I don't know why this is so complicated. -/
     · have h_w_lt_v : o.le w v := by grind
       have h_u_neq_v : ∀ u, u < w → u ≠ v := fun u hu =>
         ne_iff_lt_or_gt.mpr (Or.inl (lt_of_lt_of_le hu h_w_lt_v))
@@ -275,52 +257,42 @@ theorem degenerate_iff_degenerate_order (G : SimpleGraph V) (d : ℕ) :
             @LT.lt (↑G'.verts) o'.toLT ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ ⟨ w, h_not_v_in_G' w h ⟩ := by
         intro u h_w_adj_u h_u_lt_w
         constructor
-        · suffices h_adj_in_G' : G'.Adj w u by
-            exact SimpleGraph.Subgraph.Adj.coe h_adj_in_G'
-          apply SimpleGraph.Subgraph.deleteVerts_adj.mpr
-          exact ⟨ by rw [SimpleGraph.Subgraph.verts_top]; trivial,
+        · apply SimpleGraph.Subgraph.Adj.coe
+          exact (SimpleGraph.Subgraph.deleteVerts_adj.mpr
+                ⟨ by rw [SimpleGraph.Subgraph.verts_top]; trivial,
                   h,
                   by rw [SimpleGraph.Subgraph.verts_top]; trivial,
                   h_u_neq_v u h_u_lt_w,
-                  SimpleGraph.Subgraph.top_adj.mpr h_w_adj_u ⟩
-        · have h_u_ne_v : ¬ u = v := h_u_neq_v u h_u_lt_w
-          let h_u'_le_w' := h_o_to_o' u w h_u_ne_v h (Std.le_of_lt h_u_lt_w)
-          exact @lt_of_le_of_ne (↑G'.verts) o'.toPartialOrder ⟨ u, h_not_v_in_G' u h_u_ne_v ⟩
-            ⟨ w, h_not_v_in_G' w h ⟩ h_u'_le_w' (by grind)
+                  SimpleGraph.Subgraph.top_adj.mpr h_w_adj_u ⟩)
+        · exact @lt_of_le_of_ne (↑G'.verts) o'.toPartialOrder
+            ⟨ u, h_not_v_in_G' u (h_u_neq_v u h_u_lt_w) ⟩
+            ⟨ w, h_not_v_in_G' w h ⟩ (h_o_to_o' u w (h_u_neq_v u h_u_lt_w) h
+            (Std.le_of_lt h_u_lt_w)) (by grind)
       let S := {u | G.Adj w u ∧ u < w}
       let S' := {u' | G'.coe.Adj ⟨ w, h_not_v_in_G' w h ⟩ u' ∧
             @LT.lt (↑G'.verts) o'.toLT u' ⟨ w, h_not_v_in_G' w h ⟩}
-      have h_S_to_G' : ∀ u ∈ S, u ∈ G'.verts := by
-        intro u ⟨ _ , h_u_lt_w ⟩
-        exact h_u_in_G' u h_u_lt_w
+      have h_S_to_G' : ∀ u ∈ S, u ∈ G'.verts := fun u ⟨ _ , h_u_lt_w ⟩ => h_u_in_G' u h_u_lt_w
       let f (u : S) := (⟨ u.val, h_S_to_G' u.val u.property ⟩ : G'.verts)
       have h_f_inj : Function.Injective f := Set.inclusion_injective h_S_to_G'
-      have h_f_S_to_S' : Set.range f ⊆ S' := by
-        refine Set.range_subset_iff.mpr ?_
-        intro u
-        exact h_incl u u.property.left u.property.right
+      have h_f_S_to_S' : Set.range f ⊆ S' := Set.range_subset_iff.mpr
+        (fun u => h_incl u u.property.left u.property.right)
       have h_f_ncard : (Set.range f).ncard = S.ncard := by
-        have h_f_ncard' := Set.ncard_image_of_injective (Set.univ : Set S) h_f_inj
-        rw [Set.image_univ, Set.ncard_univ] at h_f_ncard'
+        have h_f_ncard' := (Set.ncard_univ S) ▸ Set.image_univ ▸
+          Set.ncard_image_of_injective (Set.univ : Set S) h_f_inj
         exact h_f_ncard'
       rw [← h_f_ncard]
       exact le_trans (Set.ncard_le_ncard h_f_S_to_S') how
   · rintro ⟨ o, ho ⟩
-    suffices h : IsDegenerate' G d by exact (isDegenerate_iff_isDegenerate' G d).mpr h
+    refine (isDegenerate_iff_isDegenerate' G d).mpr ?_
     intro A h_A_Nonempty
-    let A' := A.toFinset
-    have h_A'_Nonempty : A'.Nonempty := by
-       exact Set.toFinset_nonempty.mpr h_A_Nonempty
+    apply Set.toFinset_nonempty.mpr at h_A_Nonempty
     letI := o
-    let v := A'.max' h_A'_Nonempty
-    use v
-    constructor
-    · exact Set.mem_toFinset.mp (A'.max'_mem h_A'_Nonempty)
-    · suffices h_subset : { u | u ∈ A ∧ G.Adj u v } ⊆ { u | G.Adj v u ∧ u < v} by
-        exact le_trans (Set.ncard_le_ncard h_subset) (ho v)
-      intro u ⟨ h_u_in_A,  h_u_adj_v ⟩
-      exact ⟨ h_u_adj_v.symm, Std.lt_of_le_of_ne
-          (A'.le_max' u (Set.mem_toFinset.mpr h_u_in_A))
-          (G.ne_of_adj h_u_adj_v) ⟩
+    let v := A.toFinset.max' h_A_Nonempty
+    refine ⟨ v, Set.mem_toFinset.mp (A.toFinset.max'_mem h_A_Nonempty),
+        le_trans (Set.ncard_le_ncard ?_) (ho v) ⟩
+    intro u ⟨ h_u_in_A,  h_u_adj_v ⟩
+    exact ⟨ h_u_adj_v.symm, Std.lt_of_le_of_ne
+        (A.toFinset.le_max' u (Set.mem_toFinset.mpr h_u_in_A))
+        (G.ne_of_adj h_u_adj_v) ⟩
 
 end Degeneracy
