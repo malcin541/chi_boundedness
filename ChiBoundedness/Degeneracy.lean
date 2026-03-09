@@ -219,8 +219,8 @@ theorem isDegenerate_iff_isDegenerateOrder (G : SimpleGraph V) (d : ℕ) :
     /- Take low-degree vertex v and delete it, obtaining G' -/
     obtain ⟨ v, hv ⟩ := low_degree_v_of_isDegenerate hcard G h_G_deg
     let G' := (⊤ : G.Subgraph).deleteVerts {v}
-    have h_not_v_in_G' : ∀ x : V, x ≠ v → x ∈ G'.verts :=
-      fun _ hx => Set.mem_diff_of_mem trivial hx
+    have h_not_v_in_G' (x : V) (hx : x ≠ v) : x ∈ G'.verts :=
+      Set.mem_diff_of_mem trivial hx
     /- Extract linear order from induction and add v as the maximum element -/
     obtain ⟨ o', ho' ⟩ := ih G'.coe (card_del_one_vertex hcard G v)
       (isDegenerate_subgraph G G' d h_G_deg)
@@ -242,46 +242,31 @@ theorem isDegenerate_iff_isDegenerateOrder (G : SimpleGraph V) (d : ℕ) :
     use o
     intro w
     by_cases h : w = v
-    · rw [h]
-      refine le_trans (Set.ncard_le_ncard ?_) hv
-      intro u ⟨ h_u_adj_v , h_u_lt_v ⟩
-      exact (SimpleGraph.mem_neighborSet G v u).mpr h_u_adj_v
-      /- The case w ≠ v, so everything is in G'. I don't know why this is so complicated. -/
-    · have h_w_lt_v : o.le w v := by grind
-      have h_u_neq_v : ∀ u, u < w → u ≠ v := fun u hu =>
+    · exact le_trans (Set.ncard_le_ncard
+        fun u ⟨ h_u_adj_v, _ ⟩  => (SimpleGraph.mem_neighborSet G v u).mpr (h ▸ h_u_adj_v))
+        hv
+      /- The case w ≠ v, so everything is in G'. -/
+    · set S := {u | G.Adj w u ∧ u < w}
+      have h_w_lt_v : o.le w v := by grind
+      have h_u_neq_v (u : V) (hu : u < w) : u ≠ v :=
         ne_iff_lt_or_gt.mpr (Or.inl (lt_of_lt_of_le hu h_w_lt_v))
-      have h_u_in_G' : ∀ u, u < w → u ∈ G'.verts := fun u hu => h_not_v_in_G' u (h_u_neq_v u hu)
-      let how := ho' ⟨ w, h_not_v_in_G' w h ⟩
-      have h_incl : ∀ u, ∀ h_w_adj_u : G.Adj w u, ∀ h_u_lt_w : u < w,
-          G'.coe.Adj ⟨ w, h_not_v_in_G' w h ⟩ ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ ∧
-            @LT.lt (↑G'.verts) o'.toLT ⟨ u, (h_u_in_G' u h_u_lt_w) ⟩ ⟨ w, h_not_v_in_G' w h ⟩ := by
-        intro u h_w_adj_u h_u_lt_w
-        constructor
-        · apply SimpleGraph.Subgraph.Adj.coe
-          exact (SimpleGraph.Subgraph.deleteVerts_adj.mpr
-                ⟨ by rw [SimpleGraph.Subgraph.verts_top]; trivial,
-                  h,
-                  by rw [SimpleGraph.Subgraph.verts_top]; trivial,
-                  h_u_neq_v u h_u_lt_w,
-                  SimpleGraph.Subgraph.top_adj.mpr h_w_adj_u ⟩)
-        · exact @lt_of_le_of_ne (↑G'.verts) o'.toPartialOrder
+      have h_S_in_G' (u : V) (hu : u ∈ S) : u ∈ G'.verts := h_not_v_in_G' u (h_u_neq_v u hu.right)
+      rw [← S.ncard_coe, ← Set.ncard_image_of_injective _ (Set.inclusion_injective h_S_in_G'),
+          Set.image_univ]
+      refine le_trans (Set.ncard_le_ncard ?_) (ho' ⟨ w, h_not_v_in_G' w h ⟩)
+      simp only [Set.range_inclusion, SimpleGraph.Subgraph.coe_adj, Set.setOf_subset_setOf,
+        Subtype.forall]
+      exact fun u _ ⟨ h_u_adj_w, h_u_lt_w ⟩  => ⟨ -- First part "by aesop" also works
+        SimpleGraph.Subgraph.deleteVerts_adj.mpr
+          ⟨ by rw [SimpleGraph.Subgraph.verts_top]; trivial,
+            h,
+            by rw [SimpleGraph.Subgraph.verts_top]; trivial,
+            h_u_neq_v u h_u_lt_w,
+            SimpleGraph.Subgraph.top_adj.mpr h_u_adj_w ⟩,
+          @lt_of_le_of_ne (↑G'.verts) o'.toPartialOrder
             ⟨ u, h_not_v_in_G' u (h_u_neq_v u h_u_lt_w) ⟩
             ⟨ w, h_not_v_in_G' w h ⟩ (h_o_to_o' u w (h_u_neq_v u h_u_lt_w) h
-            (Std.le_of_lt h_u_lt_w)) (by grind)
-      let S := {u | G.Adj w u ∧ u < w}
-      let S' := {u' | G'.coe.Adj ⟨ w, h_not_v_in_G' w h ⟩ u' ∧
-            @LT.lt (↑G'.verts) o'.toLT u' ⟨ w, h_not_v_in_G' w h ⟩}
-      have h_S_to_G' : ∀ u ∈ S, u ∈ G'.verts := fun u ⟨ _ , h_u_lt_w ⟩ => h_u_in_G' u h_u_lt_w
-      let f (u : S) := (⟨ u.val, h_S_to_G' u.val u.property ⟩ : G'.verts)
-      have h_f_inj : Function.Injective f := Set.inclusion_injective h_S_to_G'
-      have h_f_S_to_S' : Set.range f ⊆ S' := Set.range_subset_iff.mpr
-        (fun u => h_incl u u.property.left u.property.right)
-      have h_f_ncard : (Set.range f).ncard = S.ncard := by
-        have h_f_ncard' := (Set.ncard_univ S) ▸ Set.image_univ ▸
-          Set.ncard_image_of_injective (Set.univ : Set S) h_f_inj
-        exact h_f_ncard'
-      rw [← h_f_ncard]
-      exact le_trans (Set.ncard_le_ncard h_f_S_to_S') how
+            (Std.le_of_lt h_u_lt_w)) (by grind) ⟩
   · rintro ⟨ o, ho ⟩
     refine (isDegenerate_iff_isDegenerate' G d).mpr ?_
     intro A h_A_Nonempty
