@@ -263,10 +263,8 @@ theorem isDegenerate_iff_isDegenerateOrder (G : SimpleGraph V) (d : ℕ) :
             by rw [SimpleGraph.Subgraph.verts_top]; trivial,
             h_u_neq_v u h_u_lt_w,
             SimpleGraph.Subgraph.top_adj.mpr h_u_adj_w ⟩,
-          @lt_of_le_of_ne (↑G'.verts) o'.toPartialOrder
-            ⟨ u, h_not_v_in_G' u (h_u_neq_v u h_u_lt_w) ⟩
-            ⟨ w, h_not_v_in_G' w h ⟩ (h_o_to_o' u w (h_u_neq_v u h_u_lt_w) h
-            (Std.le_of_lt h_u_lt_w)) (by grind) ⟩
+          @lt_of_le_of_ne _ o'.toPartialOrder _ _
+            (h_o_to_o' u w (h_u_neq_v u h_u_lt_w) h (Std.le_of_lt h_u_lt_w)) (by grind) ⟩
   · rintro ⟨ o, ho ⟩
     refine (isDegenerate_iff_isDegenerate' G d).mpr ?_
     intro A h_A_Nonempty
