@@ -31,10 +31,6 @@ lemma size_le_chromaticNumber_times_indepNumber :
      This should be easy, but there is some tricky typecasting between Finset and Set V -/
   intro cc
   have h_indepSet : G.IsIndepSet (opt_coloring.colorClass cc).toFinset := by
-    rw [G.isIndepSet_iff, Set.coe_toFinset]
-    exact opt_coloring.color_classes_independent cc
-  have h := h_indepSet.card_le_indepNum
-  unfold SimpleGraph.Coloring.colorClass at h
-  simp only [mem_univ, SimpleGraph.completeGraph_eq_top, forall_const, ge_iff_le]
-  simp only [SimpleGraph.completeGraph_eq_top, Set.toFinset_setOf] at h
-  exact h
+    simpa [SimpleGraph.isIndepSet_iff_isAntichain_adj, Set.coe_toFinset] using
+      opt_coloring.color_classes_independent cc
+  simpa [SimpleGraph.Coloring.colorClass] using h_indepSet.card_le_indepNum
