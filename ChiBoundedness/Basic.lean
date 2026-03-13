@@ -8,6 +8,12 @@ open Finset Fintype
 
 set_option diagnostics true
 
+def has_H_induced_subgraph {V W : Type*} [Finite V] [Finite W] (H : SimpleGraph W)
+  (G : SimpleGraph V) := ∃s : Set V, Nonempty (H ≃g (G.induce s))
+
+def is_H_free {V W : Type*} [Finite V] [Finite W] (H : SimpleGraph W)
+  (G : SimpleGraph V) := ¬(has_H_induced_subgraph H G)
+
 /- Some unimportant stuff needed because SimpleGraph can be infinite -/
 lemma finite_graph_chromaticNumber_ne_top {V : Type*} [Finite V] (G : SimpleGraph V) :
     G.chromaticNumber ≠ ⊤ := by
