@@ -8,11 +8,18 @@ open Finset Fintype
 
 set_option diagnostics true
 
-def has_H_induced_subgraph {V W : Type*} [Finite V] [Finite W] (H : SimpleGraph W)
+def has_H_induced_subgraph {V W : Type*} [Finite W] (H : SimpleGraph W)
   (G : SimpleGraph V) := ∃s : Set V, Nonempty (H ≃g (G.induce s))
 
-def is_H_free {V W : Type*} [Finite V] [Finite W] (H : SimpleGraph W)
+def is_H_free {V W : Type*} [Finite W] (H : SimpleGraph W)
   (G : SimpleGraph V) := ¬(has_H_induced_subgraph H G)
+
+lemma is_H_free_hereditary {V W : Type*} [Finite W] (H : SimpleGraph W)
+    (G : SimpleGraph V) (s : Set V) : is_H_free H G → is_H_free H (G.induce s) := by
+  intro hfree ⟨t, ⟨e⟩⟩
+  exact hfree ⟨Subtype.val '' t, ⟨e.trans
+    { toEquiv := Equiv.Set.image Subtype.val t Subtype.val_injective
+      map_rel_iff' := by intro a b; rfl }⟩⟩
 
 /- Some unimportant stuff needed because SimpleGraph can be infinite -/
 lemma finite_graph_chromaticNumber_ne_top {V : Type*} [Finite V] (G : SimpleGraph V) :
