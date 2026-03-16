@@ -30,9 +30,7 @@ theorem chiBoundedness_Pt_free (G : SimpleGraph V) (t : ℕ) (h : is_Pt_free t G
     constructor
     intro v
     let s : Finset V := {v}
-    have hclique : G.IsClique (↑s : Set V) := by
-      convert G.isClique_singleton v using 1
-      simp [s]
+    have hclique : G.IsClique (↑s : Set V) := by simp [G.isClique_singleton v, s]
     have hs' : s.card ≤ G.cliqueNum := hclique.card_le_cliqueNum
     simp [s, hω] at hs'
   | succ k ih =>
