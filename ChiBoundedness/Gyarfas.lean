@@ -57,19 +57,11 @@ lemma pt_of_inducedPath {G : SimpleGraph V} {u v : V} (p : G.Walk u v) :
         intro i j
         constructor
         · intro hij
-          have hmem : s((e i).1, (e j).1) ∈ p.edges := by
-            apply hp_induced
-            · simpa [supp] using (e i).2
-            · simpa [supp] using (e j).2
-            · simpa [f] using hij
-          have hsub : p.toSubgraph.Adj (e i).1 (e j).1 := by
-            simpa using (SimpleGraph.Walk.adj_toSubgraph_iff_mem_edges).2 hmem
-          have hi : (i : ℕ) ≤ p.length := Nat.lt_succ_iff.mp i.isLt
-          have hj : (j : ℕ) ≤ p.length := Nat.lt_succ_iff.mp j.isLt
-          have hneq : i ≠ j := by
-            intro h
-            subst h
-            exact hsub.ne rfl
+          have hsub : p.toSubgraph.Adj (e i).1 (e j).1 :=
+            SimpleGraph.Walk.adj_toSubgraph_iff_mem_edges.mpr
+              (hp_induced (e i) (e j) (by simpa [supp] using (e i).2)
+                (by simpa [supp] using (e j).2) (by simpa using hij))
+          have hneq : i ≠ j := fun h => (h ▸ hsub).ne rfl
           by_cases hi0 : (i : ℕ) = 0
           · have hnil : ¬ p.Nil := by
               rw [SimpleGraph.Walk.not_nil_iff_lt_length]
@@ -79,7 +71,7 @@ lemma pt_of_inducedPath {G : SimpleGraph V} {u v : V} (p : G.Walk u v) :
                 hp_path.snd_of_toSubgraph_adj (by simpa [e, f, hi0] using hsub)
             right
             have : (j : ℕ) = 1 := hp_path.getVert_injOn
-              (by simpa using hj)
+              (by simpa using Nat.lt_succ_iff.mp j.isLt)
               (Nat.succ_le_of_lt <| SimpleGraph.Walk.not_nil_iff_lt_length.mp hnil)
               hsnd.symm
             omega
@@ -90,13 +82,13 @@ lemma pt_of_inducedPath {G : SimpleGraph V} {u v : V} (p : G.Walk u v) :
               rcases hjmem with hprev | hnext
               · left
                 have : (j : ℕ) = i - 1 := hp_path.getVert_injOn
-                  (by simpa using hj) (by
+                  (by simpa using Nat.lt_succ_iff.mp j.isLt) (by
                     change (i : ℕ) - 1 ≤ p.length
-                    exact (Nat.sub_le _ _).trans hi) hprev
+                    exact (Nat.sub_le _ _).trans (Nat.lt_succ_iff.mp i.isLt)) hprev
                 omega
               · right
                 have : (j : ℕ) = i + 1 := hp_path.getVert_injOn
-                  (by simpa using hj) (Nat.succ_le_of_lt hilt) hnext
+                  (by simpa using Nat.lt_succ_iff.mp j.isLt) (Nat.succ_le_of_lt hilt) hnext
                 omega
             · left
               have hiel : (i : ℕ) = p.length := by omega
@@ -106,7 +98,7 @@ lemma pt_of_inducedPath {G : SimpleGraph V} {u v : V} (p : G.Walk u v) :
               rw [hp_path.neighborSet_toSubgraph_endpoint (by
                 simpa [SimpleGraph.Walk.not_nil_iff_lt_length] using hlenpos)] at hjmem
               have : (j : ℕ) = p.length - 1 := hp_path.getVert_injOn
-                (by simpa using hj) (Nat.sub_le _ _) <| by
+                (by simpa using Nat.lt_succ_iff.mp j.isLt) (Nat.sub_le _ _) <| by
                   simpa [SimpleGraph.Walk.penultimate] using hjmem
               omega
         · intro hij
