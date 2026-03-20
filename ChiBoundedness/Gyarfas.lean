@@ -63,16 +63,13 @@ lemma pt_of_inducedPath {G : SimpleGraph V} {u v : V} (p : G.Walk u v) :
                 (by simpa [supp] using (e j).2) (by simpa using hij))
           have hneq : i ≠ j := fun h => (h ▸ hsub).ne rfl
           by_cases hi0 : (i : ℕ) = 0
-          · have hnil : ¬ p.Nil := by
-              rw [SimpleGraph.Walk.not_nil_iff_lt_length]
-              omega
+          · right
             have hsnd : p.getVert 1 = p.getVert j := by
               simpa [SimpleGraph.Walk.snd, e, f] using
                 hp_path.snd_of_toSubgraph_adj (by simpa [e, f, hi0] using hsub)
-            right
             have : (j : ℕ) = 1 := hp_path.getVert_injOn
               (by simpa using Nat.lt_succ_iff.mp j.isLt)
-              (Nat.succ_le_of_lt <| SimpleGraph.Walk.not_nil_iff_lt_length.mp hnil)
+              (by apply Nat.succ_le_of_lt; omega)
               hsnd.symm
             omega
           · by_cases hilt : (i : ℕ) < p.length
