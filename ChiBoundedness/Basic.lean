@@ -11,6 +11,19 @@ set_option diagnostics true
 def has_H_induced_subgraph {V W : Type*} [Finite W] (H : SimpleGraph W)
   (G : SimpleGraph V) := ∃s : Set V, Nonempty (H ≃g (G.induce s))
 
+lemma has_H_is_mon {V W₁ W₂ : Type*} [Finite W₁] [Finite W₂]
+    (H₂ : SimpleGraph W₂) (H₁ : SimpleGraph W₁) (G : SimpleGraph V) :
+    has_H_induced_subgraph H₂ H₁ → has_H_induced_subgraph H₁ G → has_H_induced_subgraph H₂ G := by
+  rintro ⟨s, ⟨e₂₁⟩⟩ ⟨t, ⟨e₁G⟩⟩
+  refine ⟨Subtype.val '' (e₁G.toEquiv '' s), ⟨e₂₁.trans <| ?_⟩⟩
+  refine show H₁.induce s ≃g G.induce (Subtype.val '' (e₁G.toEquiv '' s)) from ?_
+  refine
+    (show H₁.induce s ≃g (G.induce t).induce (e₁G.toEquiv '' s) from
+      { toEquiv := Equiv.Set.image e₁G.toEquiv s e₁G.injective
+        map_rel_iff' := by intro a b; simpa using e₁G.map_rel_iff }).trans
+      { toEquiv := Equiv.Set.image Subtype.val (e₁G.toEquiv '' s) Subtype.val_injective
+        map_rel_iff' := by intro a b; rfl }
+
 def is_H_free {V W : Type*} [Finite W] (H : SimpleGraph W)
   (G : SimpleGraph V) := ¬(has_H_induced_subgraph H G)
 

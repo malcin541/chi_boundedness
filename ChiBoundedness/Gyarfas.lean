@@ -18,14 +18,102 @@ def Pt (t : ℕ) : SimpleGraph (Fin t) where
   symm _ _ := fun h => h.elim Or.inr Or.inl
   loopless := fun v h => Nat.succ_ne_self v.val ((h.elim id id).symm)
 
-def is_Pt_free (t : ℕ) (G : SimpleGraph V) : Prop := is_H_free G (Pt t)
+def is_Pt_free (t : ℕ) (G : SimpleGraph V) : Prop := is_H_free (Pt t) G
+
+lemma pt_hereditary (t₁ t₂ : ℕ) (h_t_mon : t₁ ≤ t₂) : has_H_induced_subgraph (Pt t₁) (Pt t₂) := by
+  use {i : Fin t₂ | (i : ℕ) < t₁}
+  refine ⟨(SimpleGraph.induceUnivIso (Pt t₁)).symm.trans ?_⟩
+  exact
+    { toEquiv :=
+        { toFun := fun a => Fin.castLEquiv h_t_mon a.1
+          invFun := fun b => ⟨(Fin.castLEquiv h_t_mon).symm b, by simp⟩
+          left_inv := fun a => by ext; simp
+          right_inv := fun b => by ext; simp }
+      map_rel_iff' := by simp [Pt] }
+
+lemma is_Pt_free_mon (t₁ t₂ : ℕ) (h_t_mon : t₁ ≤ t₂) {G : SimpleGraph V} :
+    is_Pt_free t₁ G → is_Pt_free t₂ G :=
+  fun h hp => h (has_H_is_mon (Pt t₁) (Pt t₂) G (pt_hereditary t₁ t₂ h_t_mon) hp)
 
 def path_isInduced (G : SimpleGraph V) {u v : V} (p : G.Walk u v) :=
   p.IsPath ∧ (∀ x y : V , x ∈ p.support → y ∈ p.support → G.Adj x y → (s(x, y) ∈ p.edges))
 
 lemma pt_of_inducedPath {G : SimpleGraph V} {u v : V} (p : G.Walk u v) :
     path_isInduced G p → Nonempty (G.induce (p.support.toFinset) ≃g Pt (p.length + 1)) := by
-  sorry
+  rintro ⟨hp_path, hp_induced⟩
+  let supp : Set V := ↑(p.support.toFinset)
+  let f : Fin (p.length + 1) → supp := fun i => ⟨ p.getVert i, by simp [supp] ⟩
+  let e : Fin (p.length + 1) ≃ supp := Equiv.ofBijective f
+    ⟨ fun i j hij => Fin.ext <| hp_path.getVert_injOn
+        (Nat.lt_succ_iff.mp i.isLt) (Nat.lt_succ_iff.mp j.isLt) <| by
+          simpa [f] using congrArg Subtype.val hij,
+      fun x => by
+      obtain ⟨n, hxn, hn⟩ := SimpleGraph.Walk.mem_support_iff_exists_getVert.mp
+                              (by simpa [supp] using x.2)
+      exact ⟨⟨n, Nat.lt_succ_of_le hn⟩, Subtype.ext <| by simpa [f] using hxn⟩ ⟩
+  let eIso : Pt (p.length + 1) ≃g G.induce supp :=
+    { toEquiv := e
+      map_rel_iff' := by
+        intro i j
+        constructor
+        · intro hij
+          have hmem : s((e i).1, (e j).1) ∈ p.edges := by
+            apply hp_induced
+            · simpa [supp] using (e i).2
+            · simpa [supp] using (e j).2
+            · simpa [f] using hij
+          have hsub : p.toSubgraph.Adj (e i).1 (e j).1 := by
+            simpa using (SimpleGraph.Walk.adj_toSubgraph_iff_mem_edges).2 hmem
+          have hi : (i : ℕ) ≤ p.length := Nat.lt_succ_iff.mp i.isLt
+          have hj : (j : ℕ) ≤ p.length := Nat.lt_succ_iff.mp j.isLt
+          have hneq : i ≠ j := by
+            intro h
+            subst h
+            exact hsub.ne rfl
+          by_cases hi0 : (i : ℕ) = 0
+          · have hnil : ¬ p.Nil := by
+              rw [SimpleGraph.Walk.not_nil_iff_lt_length]
+              omega
+            have hsnd : p.getVert 1 = p.getVert j := by
+              simpa [SimpleGraph.Walk.snd, e, f] using
+                hp_path.snd_of_toSubgraph_adj (by simpa [e, f, hi0] using hsub)
+            right
+            have : (j : ℕ) = 1 := hp_path.getVert_injOn
+              (by simpa using hj)
+              (Nat.succ_le_of_lt <| SimpleGraph.Walk.not_nil_iff_lt_length.mp hnil)
+              hsnd.symm
+            omega
+          · by_cases hilt : (i : ℕ) < p.length
+            · have hjmem : p.getVert j ∈ p.toSubgraph.neighborSet (p.getVert i) := by
+                simpa using hsub
+              rw [hp_path.neighborSet_toSubgraph_internal hi0 hilt] at hjmem
+              rcases hjmem with hprev | hnext
+              · left
+                have : (j : ℕ) = i - 1 := hp_path.getVert_injOn
+                  (by simpa using hj) (by
+                    change (i : ℕ) - 1 ≤ p.length
+                    exact (Nat.sub_le _ _).trans hi) hprev
+                omega
+              · right
+                have : (j : ℕ) = i + 1 := hp_path.getVert_injOn
+                  (by simpa using hj) (Nat.succ_le_of_lt hilt) hnext
+                omega
+            · left
+              have hiel : (i : ℕ) = p.length := by omega
+              have hlenpos : 0 < p.length := by omega
+              have hjmem : p.getVert j ∈ p.toSubgraph.neighborSet v := by
+                simpa [SimpleGraph.Subgraph.mem_neighborSet, hiel, e, f] using hsub
+              rw [hp_path.neighborSet_toSubgraph_endpoint (by
+                simpa [SimpleGraph.Walk.not_nil_iff_lt_length] using hlenpos)] at hjmem
+              have : (j : ℕ) = p.length - 1 := hp_path.getVert_injOn
+                (by simpa using hj) (Nat.sub_le _ _) <| by
+                  simpa [SimpleGraph.Walk.penultimate] using hjmem
+              omega
+        · intro hij
+          rcases hij with hji | hij
+          · simpa [e, f, Pt, hji] using (p.adj_getVert_succ (i := j) (by omega)).symm
+          · simpa [e, f, Pt, hij] using p.adj_getVert_succ (i := i) (by omega) }
+  exact ⟨eIso.symm⟩
 
 lemma gyarfas_step (G : SimpleGraph V) (hconn : G.Preconnected) {a t : ℕ}
     (h_nei : ∀ w : V, (G.induce (G.neighborSet w)).chromaticNumber ≤ a)
@@ -61,7 +149,11 @@ theorem chiBoundedness_Pt_free (G : SimpleGraph V) (t : ℕ) (h : is_Pt_free (t 
       apply ih
       · sorry
       · sorry
-    · sorry
+    · obtain ⟨ v, h_v_in_cc ⟩  := cc.nonempty_supp
+      use ⟨ v, h_v_in_cc ⟩
+      intro ⟨ w, h_w_in_cc ⟩ p h_p_induced
+      obtain ⟨f⟩ := pt_of_inducedPath p h_p_induced
+      sorry
 
 
 end Gyarfas
