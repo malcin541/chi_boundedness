@@ -16,7 +16,7 @@ def isInducedPath (G : SimpleGraph V) : Prop :=  G.Preconnected ∧ G.maxDegree 
 def Pt (t : ℕ) : SimpleGraph (Fin t) where
   Adj v w := (v.val = w.val + 1) ∨ (w.val = v.val + 1)
   symm _ _ := fun h => h.elim Or.inr Or.inl
-  loopless := fun v h => Nat.succ_ne_self v.val ((h.elim id id).symm)
+  loopless := ⟨fun v h => by rcases h with h | h <;> omega⟩
 
 def is_Pt_free (t : ℕ) (G : SimpleGraph V) : Prop := is_H_free (Pt t) G
 
@@ -29,7 +29,9 @@ lemma pt_hereditary (t₁ t₂ : ℕ) (h_t_mon : t₁ ≤ t₂) : has_H_induced_
           invFun := fun b => ⟨(Fin.castLEquiv h_t_mon).symm b, by simp⟩
           left_inv := fun a => by ext; simp
           right_inv := fun b => by ext; simp }
-      map_rel_iff' := by simp [Pt] }
+      map_rel_iff' := by
+        intro a b
+        constructor <;> intro h <;> simpa [Pt, Fin.castLE] using h }
 
 lemma is_Pt_free_mon (t₁ t₂ : ℕ) (h_t_mon : t₁ ≤ t₂) {G : SimpleGraph V} :
     is_Pt_free t₁ G → is_Pt_free t₂ G :=
